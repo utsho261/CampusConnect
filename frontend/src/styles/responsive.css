@@ -1,0 +1,141 @@
+/* CampusConnect — global responsive foundation (design-preserving) */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+  min-width: 320px;
+}
+
+img,
+video,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Fluid typography scale */
+.cc-fluid-h1 {
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+}
+
+.cc-fluid-h2 {
+  font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+}
+
+.cc-fluid-body {
+  font-size: clamp(0.875rem, 0.82rem + 0.25vw, 1rem);
+}
+
+/* Page shell */
+.cc-page {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.cc-container {
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(16px, 3vw, 36px);
+  padding-right: clamp(16px, 3vw, 36px);
+}
+
+/* Tables — horizontal scroll wrapper */
+.cc-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: inherit;
+}
+
+.cc-table-wrap table {
+  width: 100%;
+  min-width: 640px;
+}
+
+.cc-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+@media (max-width: 767px) {
+  .cc-table-wrap table {
+    min-width: 560px;
+  }
+}
+
+/* Touch-friendly controls */
+@media (max-width: 767px) {
+  button,
+  a[role="button"],
+  input[type="submit"],
+  select {
+    min-height: 44px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+}
+
+/* Mobile sidebar overlay */
+.cc-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 45;
+  backdrop-filter: blur(2px);
+}
+
+/* Stack header items on small screens */
+.cc-header-stack {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Prevent modal overflow */
+.cc-modal {
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  .cc-modal {
+    max-height: 92vh;
+    border-radius: 20px !important;
+  }
+}
+
+/* Hide on mobile / desktop utilities */
+@media (max-width: 767px) {
+  .cc-hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .cc-hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Safe area for notched phones */
+@supports (padding: max(0px)) {
+  .cc-safe-bottom {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}

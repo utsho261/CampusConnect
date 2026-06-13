@@ -1,0 +1,340 @@
+{
+  "landing": {
+    "nav": {
+      "login": "Login",
+      "register": "Register",
+      "features": "Features",
+      "about": "About",
+      "contact": "Contact"
+    },
+    "hero": {
+      "title": "Welcome to CampusConnect",
+      "subtitle": "Your unified platform for everything campus life",
+      "cta": "Get Started",
+      "ctaAlt": "Learn More"
+    },
+    "features": {
+      "title": "What Our Users Say",
+      "testimonials": [
+        {
+          "name": "Utsho Roy",
+          "role": "CSE Student, BUBT",
+          "text": "CampusConnect solves the daily struggle of finding notes and CT questions scattered across groups and drives."
+        },
+        {
+          "name": "Afrin Akter Achol",
+          "role": "CSE Student, BUBT",
+          "text": "The assignment cover generator alone saves me 15 minutes every submission. Absolutely love it."
+        },
+        {
+          "name": "Md. Shamim Pramanik",
+          "role": "CSE Student, BUBT",
+          "text": "Finally a platform where I can find senior books, job posts, and emergency contacts all in one place!"
+        }
+      ]
+    },
+    "footer": {
+      "copyright": "© 2026 CampusConnect. All rights reserved.",
+      "contact": "Contact Us",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Login to CampusConnect",
+      "studentId": "Student ID",
+      "studentIdPlaceholder": "Enter Your Student ID",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "loginBtn": "Login Now →",
+      "noAccount": "Don't have an account?",
+      "register": "Register",
+      "adminLogin": "🛡️ Login as Admin"
+    },
+    "adminLogin": {
+      "title": "Admin Access",
+      "subtitle": "Sign in to manage CampusConnect",
+      "username": "Username",
+      "usernamePlaceholder": "Enter admin username",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "loginBtn": "Access Admin Panel →",
+      "login": "Login here",
+      "adminPanel": "ADMIN PANEL"
+    },
+    "register": {
+      "title": "Join CampusConnect",
+      "subtitle": "Create your account",
+      "username": "Username",
+      "usernamePlaceholder": "Choose a username",
+      "studentId": "Student ID",
+      "studentIdPlaceholder": "Your student ID",
+      "email": "University Email",
+      "emailPlaceholder": "your.email@university.edu",
+      "department": "Department",
+      "departmentPlaceholder": "Select your department",
+      "password": "Password",
+      "passwordPlaceholder": "Minimum 8 characters",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter password",
+      "registerBtn": "Create Account →",
+      "haveAccount": "Already have an account?",
+      "login": "Login"
+    }
+  },
+  "dashboard": {
+    "main": {
+      "greeting": "Good Morning",
+      "greetingAlt": "Good Afternoon",
+      "greetingAlt2": "Good Evening",
+      "greeting_emoji": "🌅",
+      "greeting_emojiAlt": "☀️",
+      "greeting_emojiAlt2": "🌙",
+      "welcome": "Welcome back, {{username}}! 👋",
+      "subtitle": "Here's what's happening on your campus today"
+    },
+    "sidebar": {
+      "portal": "Student Portal",
+      "academicHub": "Academic Hub",
+      "careerHub": "Career Hub",
+      "communityHub": "Community Hub",
+      "marketplace": "Marketplace",
+      "security": "Security",
+      "profileSettings": "Profile & Settings",
+      "logout": "Logout"
+    },
+    "navigation": {
+      "dashboard": "Dashboard",
+      "notes": "Notes Repository",
+      "ctQuestions": "CT Question Bank",
+      "labCover": "Lab Cover Generator",
+      "assignmentCover": "Assignment Cover",
+      "jobs": "Job & Internship Board",
+      "bloodDonation": "Blood Donation",
+      "clubsEvents": "Club & Events",
+      "lostFound": "Lost & Found",
+      "bookMarketplace": "Book Marketplace",
+      "emergency": "Emergency Contacts",
+      "verification": "Verification"
+    },
+    "quickStats": {
+      "notesAvailable": "Notes Available",
+      "activeJobs": "Active Jobs",
+      "upcomingEvents": "Upcoming Events",
+      "bloodRequests": "Blood Requests"
+    },
+    "cards": {
+      "notesRepository": {
+        "title": "Notes Repository",
+        "desc": "Access shared class notes and study materials from seniors"
+      },
+      "ctQuestionBank": {
+        "title": "CT Question Bank",
+        "desc": "Practice with past CT, Mid & Final exam questions by course"
+      },
+      "labCoverGenerator": {
+        "title": "Lab Cover Generator",
+        "desc": "Generate professional lab report covers instantly as PDF"
+      },
+      "assignmentCover": {
+        "title": "Assignment Cover",
+        "desc": "Auto-generate formatted assignment cover pages in seconds"
+      },
+      "jobBoard": {
+        "title": "Job & Internship Board",
+        "desc": "Explore job and internship opportunities curated for students"
+      },
+      "bloodDonation": {
+        "title": "Blood Donation",
+        "desc": "Find donors or post urgent blood donation requests on campus"
+      },
+      "clubsEvents": {
+        "title": "Club & Events",
+        "desc": "Discover campus clubs, events and activities near you"
+      },
+      "lostFound": {
+        "title": "Lost & Found",
+        "desc": "Report lost items or browse found items across campus"
+      },
+      "bookMarketplace": {
+        "title": "Book Marketplace",
+        "desc": "Buy affordable used textbooks directly from senior students"
+      },
+      "emergency": {
+        "title": "Emergency Contacts",
+        "desc": "Quick access to police, hospital and campus helpdesk numbers"
+      }
+    },
+    "adminPortal": {
+      "title": "Admin Student Portal",
+      "subtitle": "View student login activity and manage usage limits.",
+      "total": "Total:",
+      "active24h": "Active 24h:",
+      "blocked": "Blocked:",
+      "student": "Student",
+      "id": "ID",
+      "logins": "Logins",
+      "limit": "Limit",
+      "status": "Status",
+      "actions": "Actions",
+      "active": "Active",
+      "lastLogin": "Last Login",
+      "never": "Never",
+      "noData": "No student data available."
+    }
+  },
+  "admin": {
+    "sidebar": {
+      "adminPanel": "ADMIN PANEL",
+      "navigation": "Navigation",
+      "dashboard": "Dashboard",
+      "studentPortal": "Student Portal",
+      "settings": "Settings",
+      "administrator": "Administrator"
+    },
+    "dashboard": {
+      "adminDashboard": "Admin Dashboard",
+      "viewActivity": "View login activity, manage permissions & usage limits",
+      "totalStudents": "Total Students",
+      "loginRate": "Login Rate",
+      "activeStudents": "Active Students",
+      "blockedStudents": "Blocked Students"
+    },
+    "students": {
+      "title": "Student Portal",
+      "search": "Search students...",
+      "student": "Student",
+      "id": "ID",
+      "department": "Department",
+      "logins": "Logins",
+      "limit": "Limit",
+      "lastLogin": "Last Login",
+      "status": "Status",
+      "actions": "Actions",
+      "active": "Active",
+      "blocked": "Blocked",
+      "noStudents": "No students found.",
+      "block": "Block",
+      "unblock": "Unblock",
+      "permissions": "Permissions"
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Manage admin panel settings",
+      "adminAccount": "Admin Account",
+      "loggedInAs": "Logged in as"
+    },
+    "permissions": {
+      "title": "Feature Permissions",
+      "featurePermissions": "Feature Permissions",
+      "cancel": "Cancel",
+      "save": "Save Permissions",
+      "saving": "Saving...",
+      "usage": "Usage:",
+      "unlimited": "(unlimited)",
+      "limit": "Limit:",
+      "features": {
+        "notes": "Notes Repository",
+        "ctQuestions": "CT Question Bank",
+        "labCover": "Lab Cover Generator",
+        "assignmentCover": "Assignment Cover",
+        "jobs": "Job & Internship",
+        "bloodDonation": "Blood Donation",
+        "clubsEvents": "Club & Events",
+        "lostFound": "Lost & Found",
+        "bookMarketplace": "Book Marketplace",
+        "emergency": "Emergency Contacts"
+      }
+    }
+  },
+  "common": {
+    "search": "Search",
+    "searchPlaceholder": "Search features...",
+    "noResults": "No features found",
+    "tryDifferent": "Try a different search term",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "close": "Close",
+    "open": "Open",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "submit": "Submit",
+    "reset": "Reset",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "settings": "Settings",
+    "profile": "Profile",
+    "account": "Account",
+    "logout": "Logout",
+    "login": "Login",
+    "register": "Register",
+    "theme": "Theme",
+    "language": "Language",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "english": "English",
+    "bangla": "Bangla",
+    "allFeatures": "All Features",
+    "upload": "Upload",
+    "download": "Download",
+    "dashboard": "Dashboard",
+    "student": "Student",
+    "department": "Department",
+    "semester": "Semester",
+    "course": "Course",
+    "title": "Title",
+    "description": "Description",
+    "select": "Select",
+    "all": "All",
+    "clearFilters": "Clear Filters",
+    "questions": "Questions",
+    "viewPdf": "View PDF",
+    "uploadDate": "Upload Date",
+    "uploadedBy": "Uploaded By",
+    "totalQuestions": "Total Questions",
+    "difficulty": "Difficulty",
+    "dragOrClick": "Drag PDF here or click to select",
+    "pdfOnly": "Only PDF files are allowed",
+    "selectFile": "Please select a file",
+    "searchByTitleOrCourse": "Search by title, course, or department...",
+    "uploadCTPaper": "Upload CT Question Paper",
+    "profileSettings": "Profile Settings",
+    "portalSubtitle": "Student Portal"
+  },
+  "messages": {
+    "loginSuccess": "Login Successful",
+    "loginFailed": "Login Failed",
+    "registerSuccess": "Registration Successful",
+    "registerFailed": "Registration Failed",
+    "logoutSuccess": "Logout Successful",
+    "passwordMismatch": "Passwords do not match",
+    "fillAllFields": "Please fill all fields",
+    "invalidEmail": "Invalid email address",
+    "weakPassword": "Password must be at least 8 characters",
+    "usernameTaken": "Username already taken",
+    "studentIdNotFound": "Student ID not found",
+    "invalidCredentials": "Invalid credentials",
+    "accessDenied": "Access denied",
+    "adminAccessRequired": "Admin access required",
+    "updateSuccess": "Updated successfully",
+    "deleteSuccess": "Deleted successfully",
+    "error": "An error occurred. Please try again.",
+    "uploadSuccess": "File uploaded successfully",
+    "uploadFailed": "Upload failed. Please try again.",
+    "fetchFailed": "Failed to fetch data",
+    "selectFile": "Please select a file",
+    "onlyPdfAllowed": "Only PDF files are allowed",
+    "requiredFields": "Please fill all required fields",
+    "fileSelected": "File selected successfully",
+    "noQuestionsFound": "No CT question papers found. Be the first to upload!"
+  }
+}
