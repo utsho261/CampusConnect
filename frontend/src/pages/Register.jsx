@@ -273,7 +273,7 @@ function LeftPanel({ isDark, currentSection }) {
             boxShadow:"0 16px 48px rgba(0,0,0,0.28), 0 2px 0 rgba(255,255,255,0.9) inset",
             overflow:"hidden",
           }}
-          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.4 }}
+          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
           whileHover={{ y:-2, boxShadow:"0 22px 56px rgba(0,0,0,0.35)" }}
           transition={{ type:"spring", stiffness:300, damping:25 }}
         >
