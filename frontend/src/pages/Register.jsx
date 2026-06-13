@@ -703,20 +703,20 @@ export default function Register() {
                     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                       <div style={{ display:"flex", gap:12 }}>
                         <div style={{ flex:1 }}>
-                          <Field icon={User} label="First Name" placeholder="e.g. Shamim"
+                          <Field icon={User} label="First Name" placeholder="e.g. Utsho"
                             value={form.firstName} onChange={handleChange("firstName")}
                             onFocus={()=>setFoc({fn:true})} onBlur={()=>setFoc({})}
                             isFocused={foc.fn} isDark={isDark} />
                         </div>
                         <div style={{ flex:1 }}>
-                          <Field icon={User} label="Last Name" placeholder="e.g. Pramanik"
+                          <Field icon={User} label="Last Name" placeholder="e.g. Roy"
                             value={form.lastName} onChange={handleChange("lastName")}
                             onFocus={()=>setFoc({ln:true})} onBlur={()=>setFoc({})}
                             isFocused={foc.ln} isDark={isDark} />
                         </div>
                       </div>
                       <div>
-                        <Field icon={IdCard} label="Student ID (11 digits)" placeholder="22235103267"
+                        <Field icon={IdCard} label="Student ID (11 digits)" placeholder="22235103261"
                           value={form.studentId} onChange={handleChange("studentId")} maxLength={11}
                           onFocus={()=>setFoc({sid:true})} onBlur={()=>setFoc({})}
                           isFocused={foc.sid} isDark={isDark} />
