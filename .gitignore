@@ -1,33 +1,24 @@
-# Environment
-.env
+# Sensitive
 backend/.env
+.env
 
 # Database
 *.sqlite3
 
-# Python
+# Logs
+*.log
+
+# Temp
+tmp_assignment_render/
+
+# IDE
+.idea/
+
+# Python cache
 __pycache__/
 *.pyc
-*.pyo
 .venv/
-venv/
-*.egg-info/
-
-# Media files (Cloudinary handle korbe)
-backend/media/
 
 # Node
 frontend/node_modules/
 frontend/dist/
-
-# IDE
-.idea/
-.vscode/
-
-# Logs
-*.log
-django.err.log
-django.log
-
-# Temp
-tmp_assignment_render/
