@@ -35,6 +35,16 @@ class User(AbstractUser):
         default='student'
     )
 
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    blood_group = models.CharField(max_length=10, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='profiles/', blank=True, null=True)
+    cover_photo = models.ImageField(upload_to='covers/', blank=True, null=True)
+    
+    id_front = models.ImageField(upload_to='verification/', blank=True, null=True)
+    id_back = models.ImageField(upload_to='verification/', blank=True, null=True)
+    semester = models.CharField(max_length=50, blank=True, null=True)
+
     verified = models.BooleanField(
         default=False
     )
@@ -116,11 +126,4 @@ class FeaturePermission(models.Model):
         status = "✓" if self.is_allowed else "✗"
         return f"{self.student.username} → {self.get_feature_key_display()} [{status}]"
 
-
-class EmailOTP(models.Model):
-    email = models.EmailField(unique=True)
-    otp = models.CharField(max_length=6)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.email} - {self.otp}"
+

@@ -2,6 +2,22 @@ from rest_framework import serializers
 from .models import Note, CTQuestion, JobPosting
 
 
+def format_media_url(file_field, request=None):
+    if not file_field:
+        return None
+    try:
+        url = file_field.url
+    except Exception:
+        return None
+
+    if "res.cloudinary.com" in url and "/image/upload/" in url and not any(x in url for x in ["/f_jpg/", "/f_png/", "/f_auto/", "/fl_attachment/"]):
+        url = url.replace("/image/upload/", "/image/upload/f_jpg/")
+
+    if request and not url.startswith('http'):
+        return request.build_absolute_uri(url)
+    return url
+
+
 class NoteSerializer(serializers.ModelSerializer):
 
     uploaded_by = serializers.StringRelatedField(read_only=True)
@@ -20,6 +36,12 @@ class NoteSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        data['pdf_file'] = format_media_url(instance.pdf_file, request)
+        return data
 
 
 class CTQuestionSerializer(serializers.ModelSerializer):
@@ -47,11 +69,13 @@ class CTQuestionSerializer(serializers.ModelSerializer):
 
     def get_file_url(self, obj):
         request = self.context.get('request')
-        if obj.pdf_file and request:
-            return request.build_absolute_uri(obj.pdf_file.url)
-        if obj.pdf_file:
-            return obj.pdf_file.url
-        return None
+        return format_media_url(obj.pdf_file, request)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        data['pdf_file'] = format_media_url(instance.pdf_file, request)
+        return data
 
 
 class JobPostingSerializer(serializers.ModelSerializer):

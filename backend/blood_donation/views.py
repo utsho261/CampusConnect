@@ -12,6 +12,8 @@ from .serializers import (
     BloodDonorSerializer, BloodRequestSerializer,
     DonationRecordSerializer, CommunityPostSerializer, DonationStatsSerializer,
 )
+from accounts.permissions import IsOwnerOrReadOnly
+from leaderboard.utils import POINT_RULES, award_points_once
 
 # Compatible blood groups lookup
 COMPATIBLE_DONORS = {
@@ -93,7 +95,7 @@ class BloodDonorViewSet(viewsets.ModelViewSet):
 
 class BloodRequestViewSet(viewsets.ModelViewSet):
     serializer_class = BloodRequestSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         qs = BloodRequest.objects.select_related('requested_by')
@@ -121,7 +123,14 @@ class BloodRequestViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(requested_by=self.request.user)
+        blood_request = serializer.save(requested_by=self.request.user)
+        rule = POINT_RULES['blood_request_post']
+        award_points_once(
+            self.request.user,
+            rule['category'],
+            f"{rule['action_name']}: {blood_request.blood_group} #{blood_request.id}",
+            rule['points'],
+        )
 
     @action(detail=True, methods=['post'], url_path='share')
     def share(self, request, pk=None):
@@ -162,6 +171,13 @@ class DonationRecordViewSet(viewsets.ModelViewSet):
             donor.total_donations += 1
             donor.last_donation_date = record.donation_date
             donor.save(update_fields=['total_donations', 'last_donation_date'])
+            rule = POINT_RULES['blood_donation']
+            award_points_once(
+                self.request.user,
+                rule['category'],
+                f"{rule['action_name']}: {record.donation_date} #{record.id}",
+                rule['points'],
+            )
         except BloodDonor.DoesNotExist:
             from rest_framework.exceptions import ValidationError
             raise ValidationError("You must be registered as a donor first.")
@@ -169,13 +185,20 @@ class DonationRecordViewSet(viewsets.ModelViewSet):
 
 class CommunityPostViewSet(viewsets.ModelViewSet):
     serializer_class = CommunityPostSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         return CommunityPost.objects.filter(is_approved=True).prefetch_related('likes', 'author')
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        post = serializer.save(author=self.request.user)
+        rule = POINT_RULES['blood_community_post']
+        award_points_once(
+            self.request.user,
+            rule['category'],
+            f"{rule['action_name']}: #{post.id}",
+            rule['points'],
+        )
 
     @action(detail=True, methods=['post'], url_path='toggle-like')
     def toggle_like(self, request, pk=None):
@@ -213,9 +236,10 @@ class DonationStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        total_donors = BloodDonor.objects.filter(is_approved=True).count()
-        active_donors = BloodDonor.objects.filter(is_approved=True, is_available=True).count()
-        emergency_donors = BloodDonor.objects.filter(is_approved=True, emergency_available=True).count()
+        approved_donors = BloodDonor.objects.filter(is_approved=True)
+        total_donors = approved_donors.count()
+        active_donors = approved_donors.filter(is_available=True).count()
+        emergency_donors = approved_donors.filter(emergency_available=True).count()
         total_requests = BloodRequest.objects.count()
         open_requests = BloodRequest.objects.filter(status__in=['open', 'urgent']).count()
         urgent_requests = BloodRequest.objects.filter(urgency__in=['urgent', 'critical'], status__in=['open', 'urgent']).count()
@@ -224,9 +248,9 @@ class DonationStatsView(APIView):
         total_donations = DonationRecord.objects.aggregate(total=Sum('bags'))['total'] or 0
         lives_saved = total_donations * 3
 
-        # Blood group distribution
+        # Blood group distribution - single aggregated query
         bg_dist = {}
-        for item in BloodDonor.objects.filter(is_approved=True).values('blood_group').annotate(count=Count('id')):
+        for item in approved_donors.values('blood_group').annotate(count=Count('id')):
             bg_dist[item['blood_group']] = item['count']
 
         # Monthly stats (last 6 months)

@@ -50,11 +50,17 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'username',
+            'first_name',
             'student_id',
             'department',
             'university_email',
             'role',
             'verified',
+            'phone_number',
+            'blood_group',
+            'bio',
+            'profile_picture',
+            'cover_photo',
         ]
 
 

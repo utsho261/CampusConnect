@@ -10,7 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 import random
 from django.core.mail import send_mail
 
-from .models import User, FeaturePermission, EmailOTP
+from .models import User, FeaturePermission
 from .serializers import (
     RegisterSerializer,
     ProfileSerializer,
@@ -18,57 +18,6 @@ from .serializers import (
     FeaturePermissionSerializer,
 )
 
-
-class RequestOTPView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        email = request.data.get("email")
-        if not email:
-            return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if User.objects.filter(university_email=email).exists():
-            return Response({"error": "Email is already registered"}, status=status.HTTP_400_BAD_REQUEST)
-
-        otp = f"{random.randint(100000, 999999)}"
-        EmailOTP.objects.update_or_create(
-            email=email,
-            defaults={'otp': otp, 'created_at': timezone.now()}
-        )
-
-        send_mail(
-            "Your CampusConnect Verification Code",
-            f"Your OTP code is: {otp}\nIt is valid for 5 minutes.",
-            "noreply@campusconnect.edu.bd",
-            [email],
-            fail_silently=False,
-        )
-
-        return Response({"message": "OTP sent successfully"})
-
-
-class VerifyOTPView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        email = request.data.get("email")
-        otp = request.data.get("otp")
-
-        if not email or not otp:
-            return Response({"error": "Email and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            record = EmailOTP.objects.get(email=email)
-        except EmailOTP.DoesNotExist:
-            return Response({"error": "No OTP requested for this email"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if timezone.now() > record.created_at + timedelta(minutes=5):
-            return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if record.otp != str(otp):
-            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({"message": "OTP verified"})
 
 
 class RegisterView(generics.CreateAPIView):
@@ -78,23 +27,11 @@ class RegisterView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         email = request.data.get("university_email")
-        otp = request.data.get("otp")
 
-        if not email or not otp:
-            return Response({"error": "Email and OTP are required for registration"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            record = EmailOTP.objects.get(email=email)
-            if timezone.now() > record.created_at + timedelta(minutes=5):
-                return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
-            if record.otp != str(otp):
-                return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-        except EmailOTP.DoesNotExist:
-            return Response({"error": "OTP not found. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+        if not email:
+            return Response({"error": "Email is required for registration"}, status=status.HTTP_400_BAD_REQUEST)
 
         response = super().create(request, *args, **kwargs)
-        
-        EmailOTP.objects.filter(email=email).delete()
 
         return response
 
@@ -369,6 +306,64 @@ class ProfileView(APIView):
         serializer = ProfileSerializer(request.user)
         return Response(serializer.data)
 
+    def patch(self, request):
+        user = request.user
+        data = request.data
+        import base64
+        from django.core.files.base import ContentFile
+        
+        if 'first_name' in data:
+            user.first_name = data['first_name']
+        if 'phone_number' in data:
+            user.phone_number = data['phone_number']
+        if 'university_email' in data:
+            user.university_email = data['university_email']
+        if 'blood_group' in data:
+            user.blood_group = data['blood_group']
+        if 'bio' in data:
+            user.bio = data['bio']
+            
+        def process_base64_image(base64_str, filename):
+            if base64_str and ';base64,' in base64_str:
+                format, imgstr = base64_str.split(';base64,') 
+                ext = format.split('/')[-1].split(';')[0]
+                return ContentFile(base64.b64decode(imgstr), name=f'{filename}.{ext}')
+            return None
+
+        if 'profile_picture' in data and data['profile_picture']:
+             file = process_base64_image(data['profile_picture'], f"profile_{user.id}")
+             if file: user.profile_picture = file
+             
+        if 'cover_photo' in data and data['cover_photo']:
+             file = process_base64_image(data['cover_photo'], f"cover_{user.id}")
+             if file: user.cover_photo = file
+             
+        # Verification fields
+        if 'id_front' in request.FILES:
+             user.id_front = request.FILES['id_front']
+        elif 'id_front' in data and data['id_front']:
+             file = process_base64_image(data['id_front'], f"id_front_{user.id}")
+             if file: user.id_front = file
+             
+        if 'id_back' in request.FILES:
+             user.id_back = request.FILES['id_back']
+        elif 'id_back' in data and data['id_back']:
+             file = process_base64_image(data['id_back'], f"id_back_{user.id}")
+             if file: user.id_back = file
+             
+        if 'semester' in data:
+             user.semester = data['semester']
+        if 'department' in data:
+             user.department = data['department']
+        if 'intake' in data:
+             user.intake = data['intake']
+             
+        if 'verified' in data:
+             user.verified = str(data['verified']).lower() == 'true'
+
+        user.save()
+        return Response(ProfileSerializer(user).data)
+
 
 class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -378,37 +373,41 @@ class DashboardStatsView(APIView):
         from blood_donation.models import BloodRequest, CommunityPost
         from django.utils import timezone
         from datetime import timedelta
-        
+
+        # Efficient single queries for counts
         total_notes = Note.objects.count()
-        total_jobs = JobPosting.objects.count()
+        total_jobs = JobPosting.objects.filter(status='approved').count()
         total_posts = CommunityPost.objects.count()
         total_blood_requests = BloodRequest.objects.count()
 
-        # Gather recent activity
+        # Gather recent activity — only fetch needed fields
         activities = []
-        for note in Note.objects.order_by('-created_at')[:3]:
+        for note in Note.objects.only('id', 'title', 'created_at').order_by('-created_at')[:3]:
             activities.append({"id": f"note_{note.id}", "title": note.title, "type": "academic", "time": note.created_at.isoformat()})
-        for job in JobPosting.objects.order_by('-created_at')[:3]:
+        for job in JobPosting.objects.only('id', 'title', 'created_at').filter(status='approved').order_by('-created_at')[:3]:
             activities.append({"id": f"job_{job.id}", "title": job.title, "type": "career", "time": job.created_at.isoformat()})
-        for req in BloodRequest.objects.order_by('-created_at')[:3]:
+        for req in BloodRequest.objects.only('id', 'blood_group', 'created_at').order_by('-created_at')[:3]:
             activities.append({"id": f"blood_{req.id}", "title": f"Blood Required: {req.blood_group}", "type": "community", "time": req.created_at.isoformat()})
-        for post in CommunityPost.objects.order_by('-created_at')[:3]:
+        for post in CommunityPost.objects.only('id', 'content', 'created_at').order_by('-created_at')[:3]:
             activities.append({"id": f"post_{post.id}", "title": post.content[:30] + ("..." if len(post.content) > 30 else ""), "type": "community", "time": post.created_at.isoformat()})
-        
-        # Sort by time descending and take top 4
+
         activities.sort(key=lambda x: x['time'], reverse=True)
         recent_activity = activities[:4]
 
+        # Graph data: last 12 days
         today = timezone.now().date()
         graph_data = []
         for i in range(11, -1, -1):
             day = today - timedelta(days=i)
-            c1 = Note.objects.filter(created_at__date=day).count()
-            c2 = JobPosting.objects.filter(created_at__date=day).count()
-            c3 = BloodRequest.objects.filter(created_at__date=day).count()
-            c4 = CommunityPost.objects.filter(created_at__date=day).count()
-            graph_data.append(c1 + c2 + c3 + c4)
+            c = (
+                Note.objects.filter(created_at__date=day).count()
+                + JobPosting.objects.filter(created_at__date=day).count()
+                + BloodRequest.objects.filter(created_at__date=day).count()
+                + CommunityPost.objects.filter(created_at__date=day).count()
+            )
+            graph_data.append(c)
 
+        # Fallback to demo data if nothing was created recently
         if sum(graph_data) == 0:
             graph_data = [40, 60, 30, 80, 50, 90, 70, 100, 40, 60, 85, 45]
 
@@ -420,3 +419,21 @@ class DashboardStatsView(APIView):
             "recent_activity": recent_activity,
             "graph_data": graph_data
         })
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+        
+        if not current_password or not new_password:
+            return Response({"error": "Both current and new passwords are required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if not user.check_password(current_password):
+            return Response({"error": "Invalid current password."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password updated successfully."}, status=status.HTTP_200_OK)

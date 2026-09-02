@@ -7,7 +7,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--username", type=str, default="admin")
-        parser.add_argument("--password", type=str, default="admin1234")
+        parser.add_argument("--password", type=str, default="1234")
         parser.add_argument("--email", type=str, default="admin@campusconnect.com")
         parser.add_argument("--student-id", type=str, default="ADMIN-001")
 
