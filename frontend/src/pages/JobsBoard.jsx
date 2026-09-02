@@ -22,12 +22,14 @@ import {
   GraduationCap,
 } from "lucide-react";
 import api from "../services/api";
+import { cachedGetAll, invalidateCache } from "../services/apiCache";
 import { useNavigate } from "react-router-dom";
 import { useLanguage, useTheme, useBreakpoint } from "../hooks";
 import { autoFillGrid, filterBarGrid, formGridCols, formGridCols3, heroTitleSize, pageShellPadding, statsAutoGrid } from "../utils/responsiveLayout";
 import ThemeLanguageSwitcher from "../components/ThemeLanguageSwitcher";
 import { getThemeColors } from "../utils/themeColors";
 import toast from "react-hot-toast";
+import FloatingBackButton from "../components/FloatingBackButton";
 
 const ACCENT = "#059669";
 const ACCENT_TEAL = "#0d9488";
@@ -95,20 +97,69 @@ export default function JobsBoard() {
   const [showPost, setShowPost] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
-  const fetchJobs = async () => {
+  const handleEdit = (e, job) => {
+    e.stopPropagation();
+    const editForm = {
+      title: job.title || "",
+      company_name: job.company_name || "",
+      job_type: job.job_type || "",
+      department: job.department || "",
+      location: job.location || "",
+      work_mode: job.work_mode || "",
+      salary_range: job.salary_range || "",
+      deadline: job.deadline ? job.deadline.substring(0, 10) : "",
+      description: job.description || "",
+      requirements: job.requirements || "",
+      apply_link: job.apply_link || "",
+      apply_email: job.apply_email || "",
+      contact_phone: job.contact_phone || "",
+    };
+    setForm(editForm);
+    setEditingId(job.id);
+    setShowPost(true);
+  };
+
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this job post?")) return;
     try {
-      const [approvedRes, mineRes] = await Promise.all([
-        api.get("jobs/"),
-        api.get("jobs/mine/"),
+      await api.delete(`jobs/${id}/`);
+      toast.success("Job deleted successfully");
+      invalidateCache("jobs_list");
+      invalidateCache("jobs_mine");
+      fetchJobs();
+      if (selectedJob?.id === id) setSelectedJob(null);
+    } catch (err) {
+      toast.error("Failed to delete job");
+    }
+  };
+
+  const fetchJobs = async () => {
+    const hasCached = ["jobs_list", "jobs_mine"].some(k => localStorage.getItem(`cc_cache_${k}`));
+    try {
+      const [jobsData, mineData] = await cachedGetAll(api, [
+        {
+          url: "jobs/",
+          cacheKey: "jobs_list",
+          ttl: 3 * 60 * 1000,
+          onCacheHit: (d) => { setJobs(d); setLoading(false); },
+        },
+        {
+          url: "jobs/mine/",
+          cacheKey: "jobs_mine",
+          ttl: 2 * 60 * 1000,
+          onCacheHit: (d) => setMyJobs(d),
+        },
       ]);
-      setJobs(approvedRes.data);
-      setMyJobs(mineRes.data);
+      if (jobsData) setJobs(jobsData);
+      if (mineData) setMyJobs(mineData);
     } catch (err) {
       if (err.response?.status === 401) navigate("/login");
-      toast.error(t("messages.fetchFailed"));
+      if (!hasCached) toast.error(t("messages.fetchFailed"));
     } finally {
       setLoading(false);
     }
@@ -149,12 +200,20 @@ export default function JobsBoard() {
       const payload = Object.fromEntries(
         Object.entries(form).filter(([, value]) => value !== "" && value != null)
       );
-      await api.post("jobs/", payload);
-      toast.success(t("jobs.pendingMessage"));
+      if (editingId) {
+        await api.patch(`jobs/${editingId}/`, payload);
+        toast.success("Job updated successfully");
+      } else {
+        await api.post("jobs/", payload);
+        toast.success(`${t("jobs.pendingMessage")} +10 points earned!`);
+      }
       setShowPost(false);
       setForm(emptyForm);
+      setEditingId(null);
+      invalidateCache("jobs_list");
+      invalidateCache("jobs_mine");
       fetchJobs();
-      setActiveTab("my");
+      if (!editingId) setActiveTab("my");
     } catch (err) {
       const errData = err.response?.data;
       const msg = errData
@@ -347,7 +406,15 @@ export default function JobsBoard() {
           <span style={{ fontSize: 11, color: colors.text_muted }}>
             {job.deadline ? `${t("jobs.deadline")}: ${new Date(job.deadline).toLocaleDateString()}` : t("jobs.viewDetails")}
           </span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: ACCENT }}>{t("jobs.viewDetails")} →</span>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {showStatus && (
+                <>
+                    <button onClick={(e) => handleEdit(e, job)} style={{ background: "none", border: "none", color: "#3b82f6", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>Edit</button>
+                    <button onClick={(e) => handleDelete(e, job.id)} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>Delete</button>
+                </>
+            )}
+            <span style={{ fontSize: 12, fontWeight: 700, color: ACCENT }}>{t("jobs.viewDetails")} →</span>
+          </div>
         </div>
       </div>
     );
@@ -355,6 +422,7 @@ export default function JobsBoard() {
 
   return (
     <div className="cc-page" style={{ minHeight: "100vh", background: isDark ? "#0b1120" : "#f0fdf4", padding: pageShellPadding(bp), fontFamily: "Inter, sans-serif", color: colors.text_primary }}>
+      <FloatingBackButton />
       <ThemeLanguageSwitcher />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
@@ -510,7 +578,7 @@ export default function JobsBoard() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)", padding: 20 }} onClick={(e) => e.target === e.currentTarget && setShowPost(false)}>
           <div className="cc-modal" style={{ width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto", background: colors.bg_card, borderRadius: 24, border: `1.5px solid ${isDark ? "rgba(255,255,255,0.08)" : "#d1fae5"}`, boxShadow: "0 32px 80px rgba(5,150,105,0.15)" }}>
             <div style={{ background: `linear-gradient(135deg, ${ACCENT_INDIGO}, #6366f1)`, padding: "28px 32px", position: "relative" }}>
-              <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "white" }}>{t("jobs.postOpportunity")}</h2>
+              <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "white" }}>{editingId ? "Edit Opportunity" : t("jobs.postOpportunity")}</h2>
               <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>{t("jobs.postSubtitle")}</p>
               <button onClick={() => setShowPost(false)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
                 <X size={20} />
@@ -600,7 +668,7 @@ export default function JobsBoard() {
                   {t("common.cancel")}
                 </button>
                 <button onClick={handleSubmit} disabled={submitting} style={{ padding: "12px 20px", background: submitting ? "#86efac" : `linear-gradient(135deg, ${ACCENT}, ${ACCENT_TEAL})`, color: "white", border: "none", borderRadius: 12, fontWeight: 700, cursor: submitting ? "wait" : "pointer", fontFamily: "Inter, sans-serif" }}>
-                  {submitting ? t("messages.uploading") : t("jobs.submitForReview")}
+                  {submitting ? t("messages.uploading") : (editingId ? "Update Opportunity" : t("jobs.submitForReview"))}
                 </button>
               </div>
             </div>

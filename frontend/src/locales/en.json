@@ -117,7 +117,8 @@
       "lostFound": "Lost & Found",
       "bookMarketplace": "Book Marketplace",
       "emergency": "Emergency Contacts",
-      "verification": "Verification"
+      "verification": "Verification",
+      "leaderboard": "Campus Legends"
     },
     "quickStats": {
       "notesAvailable": "Notes Available",
@@ -308,7 +309,8 @@
     "searchByTitleOrCourse": "Search by title, course, or department...",
     "uploadCTPaper": "Upload CT Question Paper",
     "profileSettings": "Profile Settings",
-    "portalSubtitle": "Student Portal"
+    "portalSubtitle": "Student Portal",
+    "campusLegends": "Campus Legends"
   },
   "messages": {
     "loginSuccess": "Login Successful",

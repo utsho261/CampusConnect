@@ -114,3 +114,7 @@ textarea::placeholder {
 ::selection {
   background: color-mix(in srgb, var(--accent-primary) 26%, transparent);
 }
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}

@@ -6,18 +6,25 @@ import {
   Heart, Sparkles, Search, ShoppingBag, Phone,
   ArrowRight, GraduationCap, LayoutDashboard, LogOut,
   User, Bell, ChevronDown, Shield, Menu, X,
-  TrendingUp, Activity, Users, MapPin, LineChart, BellRing, Settings
+  TrendingUp, Activity, Users, MapPin, BellRing, Settings,
+  ShieldAlert, Flame, HeartPulse, Droplet, ShieldCheck, Trophy, LineChart
 } from "lucide-react";
 import { useLanguage, useTheme, useBreakpoint } from "../hooks";
 import { cardsGridCols, headerPadding, mainOffset, pagePadding, statsGridCols } from "../utils/responsiveLayout";
-import ThemeLanguageSwitcher from "../components/ThemeLanguageSwitcher";
 import { getThemeColors } from "../utils/themeColors";
-import api from "../services/api";
+import ThemeLanguageSwitcher from "../components/ThemeLanguageSwitcher";
+import api, { BASE_URL } from "../services/api";
+import { cachedGet } from "../services/apiCache";
+import LeaderboardWidget from "../components/LeaderboardWidget";
+import { useAuth } from "../contexts/AuthContext";
 
 const navGroups = [
   {
     labelKey: "dashboard.groups.main",
-    items: [{ titleKey: "common.dashboard", icon: LayoutDashboard, link: "/dashboard", color: "#7C3AED" }],
+    items: [
+      { titleKey: "common.dashboard", icon: LayoutDashboard, link: "/dashboard", color: "#7C3AED" },
+      { titleKey: "Campus Hero", icon: Trophy, link: "/leaderboard", color: "#F59E0B" }
+    ],
   },
   {
     labelKey: "dashboard.groups.academic",
@@ -42,7 +49,7 @@ const navGroups = [
   },
   {
     labelKey: "dashboard.groups.marketplace",
-    items: [{ titleKey: "features.bookMarketplace", icon: ShoppingBag, link: "/book-marketplace", color: "#F97316" }],
+    items: [{ titleKey: "features.bookMarketplace", icon: ShoppingBag, link: "/marketplace", color: "#F97316" },],
   },
   {
     labelKey: "dashboard.groups.security",
@@ -58,7 +65,7 @@ const dashboardCards = [
   { titleKey: "features.bloodDonation", descKey: "features.bloodDonationDesc", icon: Heart, color: "#EF4444", link: "/blood-donation" },
   { titleKey: "features.clubsEvents", descKey: "features.clubsEventsDesc", icon: Sparkles, color: "#F59E0B", link: "/clubs-events" },
   { titleKey: "features.lostFound", descKey: "features.lostFoundDesc", icon: Search, color: "#10B981", link: "/lost-found" },
-  { titleKey: "features.bookMarketplace", descKey: "features.bookMarketplaceDesc", icon: ShoppingBag, color: "#F97316", link: "/book-marketplace" },
+  { titleKey: "features.bookMarketplace", descKey: "features.bookMarketplaceDesc", icon: ShoppingBag, color: "#F97316", link: "/marketplace" },
   { titleKey: "features.emergency", descKey: "features.emergencyDesc", icon: Phone, color: "#EC4899", link: "/emergency" },
 ];
 
@@ -272,31 +279,14 @@ function StatWidget({ title, value, icon: Icon, color }) {
   );
 }
 
-// Format ISO date to relative time
-function getRelativeTime(dateString) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now - date) / 1000);
-  
-  if (diffInSeconds < 60) return "Just now";
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  return `${Math.floor(diffInSeconds / 86400)}d ago`;
-}
-
-const iconMap = {
-  academic: { icon: FileText, color: "#8B5CF6" },
-  career: { icon: Briefcase, color: "#3B82F6" },
-  community: { icon: Heart, color: "#EF4444" },
-  default: { icon: Sparkles, color: "#10B981" }
-};
-
 export default function Dashboard() {
   const [username, setUsername] = useState("Student");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
+  const { user, logout } = useAuth();
   
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -305,8 +295,16 @@ export default function Dashboard() {
   const colors = getThemeColors(theme);
   const isDark = theme === "dark";
 
-  // Dashboard state for real data
-  const [stats, setStats] = useState({
+  // Dashboard state — try to load from cache immediately
+  const _cachedStats = (() => {
+    try {
+      const raw = localStorage.getItem('cc_cache_dashboard_stats');
+      if (raw) return JSON.parse(raw).data;
+    } catch (_) {}
+    return null;
+  })();
+
+  const [stats, setStats] = useState(_cachedStats || {
     total_notes: "...",
     total_jobs: "...",
     total_posts: "...",
@@ -329,14 +327,17 @@ export default function Dashboard() {
       navigate("/login");
     }
 
-    api.get("dashboard/stats/")
-      .then(res => setStats(res.data))
+    cachedGet(api, "dashboard/stats/", {
+      cacheKey: "dashboard_stats",
+      ttl: 2 * 60 * 1000, // 2 min
+      onCacheHit: (d) => setStats(d),
+    })
+      .then(freshData => { if (freshData) setStats(freshData); })
       .catch(err => console.error("Failed to fetch dashboard stats", err));
   }, [navigate]);
 
   const confirmLogout = () => {
-    ["access", "refresh", "username", "student_id", "role"].forEach((k) => localStorage.removeItem(k));
-    navigate("/login");
+    logout();
   };
 
   const hour = new Date().getHours();
@@ -382,7 +383,7 @@ export default function Dashboard() {
               </motion.button>
             )}
             <div>
-              <h1 style={{ fontSize: "22px", fontWeight: "800", color: isDark ? "#F8FAFC" : "#0F172A", margin: 0, letterSpacing: "-0.5px" }}>{greeting}, {username}</h1>
+              <h1 style={{ fontSize: "22px", fontWeight: "800", color: isDark ? "#F8FAFC" : "#0F172A", margin: 0, letterSpacing: "-0.5px" }}>{greeting}, {user?.first_name || user?.username || username}</h1>
               <div style={{ fontSize: "14px", color: isDark ? "#94A3B8" : "#64748B", marginTop: "4px", fontWeight: "500" }}>Here's your premium campus overview.</div>
             </div>
           </div>
@@ -396,8 +397,8 @@ export default function Dashboard() {
 
             <div style={{ position: "relative" }}>
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setDropdownOpen(!dropdownOpen)} style={{ display: "flex", alignItems: "center", gap: "10px", border: "none", background: "transparent", cursor: "pointer", padding: 0 }}>
-                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "linear-gradient(135deg, #7C3AED, #4F46E5)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "18px", fontWeight: "800", boxShadow: "0 4px 14px rgba(124,58,237,0.3)", border: "2px solid rgba(255,255,255,0.2)" }}>
-                  {username.charAt(0).toUpperCase()}
+                <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: user?.profile_picture ? "transparent" : "linear-gradient(135deg, #7C3AED, #4F46E5)", backgroundImage: user?.profile_picture ? `url(${BASE_URL}${user.profile_picture})` : "none", backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "18px", fontWeight: "800", boxShadow: "0 4px 14px rgba(124,58,237,0.3)", border: "2px solid rgba(255,255,255,0.2)" }}>
+                  {!user?.profile_picture && (user?.first_name?.charAt(0).toUpperCase() || user?.username?.charAt(0).toUpperCase() || username.charAt(0).toUpperCase())}
                 </div>
               </motion.button>
 
@@ -405,7 +406,7 @@ export default function Dashboard() {
                 {dropdownOpen && (
                   <motion.div initial={{ opacity: 0, y: 15, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }} style={{ position: "absolute", top: "calc(100% + 16px)", right: 0, background: isDark ? "rgba(30,41,59,0.95)" : "rgba(255,255,255,0.95)", backdropFilter: "blur(20px)", borderRadius: "20px", boxShadow: isDark ? "0 20px 60px rgba(0,0,0,0.6)" : "0 20px 60px rgba(15,23,42,0.1)", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}`, padding: "12px", minWidth: "240px", zIndex: 100 }}>
                     <div style={{ padding: "12px 16px", marginBottom: "8px", background: isDark ? "rgba(0,0,0,0.2)" : "rgba(241,245,249,0.5)", borderRadius: "12px" }}>
-                      <div style={{ fontSize: "15px", fontWeight: "700", color: isDark ? "#F8FAFC" : "#0F172A" }}>{username}</div>
+                      <div style={{ fontSize: "15px", fontWeight: "700", color: isDark ? "#F8FAFC" : "#0F172A" }}>{user?.first_name || user?.username || username}</div>
                       <div style={{ fontSize: "13px", color: isDark ? "#94A3B8" : "#64748B", marginTop: "2px" }}>Premium Student</div>
                     </div>
                     <button onClick={() => { navigate("/profile"); setDropdownOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderRadius: "12px", border: "none", background: "transparent", cursor: "pointer", color: isDark ? "#E2E8F0" : "#334155", fontSize: "14px", fontWeight: "600", transition: "all 0.2s ease" }} onMouseEnter={(e) => e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}><Settings size={18} /> {t("common.profileSettings")}</button>
@@ -421,6 +422,58 @@ export default function Dashboard() {
         <main style={{ flex: 1, padding: pagePadding(bp), overflowY: "auto", overflowX: "hidden" }}>
           <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ maxWidth: "1400px", margin: "0 auto" }}>
             
+            {/* Quick Emergency Widget */}
+            <motion.div variants={itemVariants} style={{
+              background: isDark ? "linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(185, 28, 28, 0.05) 100%)" : "linear-gradient(135deg, rgba(254, 226, 226, 0.8) 0%, rgba(254, 202, 202, 0.3) 100%)",
+              backdropFilter: "blur(24px)",
+              borderRadius: "28px", padding: "28px",
+              border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.1)"}`,
+              boxShadow: isDark ? "0 12px 40px rgba(220, 38, 38, 0.15)" : "0 12px 40px rgba(220, 38, 38, 0.05)",
+              marginBottom: "32px", position: "relative", overflow: "hidden"
+            }}>
+              <div style={{ position: "absolute", top: "-20%", right: "-10%", width: "150px", height: "150px", background: "#EF4444", borderRadius: "50%", filter: "blur(60px)", opacity: isDark ? 0.2 : 0.1 }} />
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", position: "relative", zIndex: 1 }}>
+                <h2 style={{ fontSize: "22px", fontWeight: "800", color: isDark ? "#F8FAFC" : "#7F1D1D", margin: 0, display: "flex", alignItems: "center", gap: "10px", letterSpacing: "-0.5px" }}>
+                  <ShieldAlert size={26} className="text-red-500" strokeWidth={2.5} /> 
+                  Quick Emergency
+                </h2>
+                <button onClick={() => navigate('/emergency')} style={{ background: "transparent", border: "none", color: "#EF4444", fontSize: "14px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                  View All <ArrowRight size={16} />
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: bp.isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "16px", position: "relative", zIndex: 1 }}>
+                <button onClick={() => navigate('/emergency/police')} style={{ padding: "16px", borderRadius: "20px", background: isDark ? "rgba(30, 64, 175, 0.2)" : "rgba(219, 234, 254, 0.8)", border: `1px solid ${isDark ? "rgba(59, 130, 246, 0.3)" : "rgba(59, 130, 246, 0.2)"}`, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", cursor: "pointer", transition: "all 0.2s ease" }} className="hover:scale-105 active:scale-95">
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 20px rgba(59, 130, 246, 0.3)" }}>
+                    <ShieldAlert size={24} />
+                  </div>
+                  <span style={{ fontSize: "14px", fontWeight: "700", color: isDark ? "#BFDBFE" : "#1E3A8A" }}>Police</span>
+                </button>
+
+                <button onClick={() => navigate('/emergency/medical')} style={{ padding: "16px", borderRadius: "20px", background: isDark ? "rgba(153, 27, 27, 0.2)" : "rgba(254, 226, 226, 0.8)", border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.2)"}`, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", cursor: "pointer", transition: "all 0.2s ease" }} className="hover:scale-105 active:scale-95">
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #EF4444, #DC2626)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 20px rgba(239, 68, 68, 0.3)" }}>
+                    <HeartPulse size={24} />
+                  </div>
+                  <span style={{ fontSize: "14px", fontWeight: "700", color: isDark ? "#FECACA" : "#7F1D1D" }}>Medical</span>
+                </button>
+
+                <button onClick={() => navigate('/emergency/fire')} style={{ padding: "16px", borderRadius: "20px", background: isDark ? "rgba(154, 52, 18, 0.2)" : "rgba(255, 237, 213, 0.8)", border: `1px solid ${isDark ? "rgba(249, 115, 22, 0.3)" : "rgba(249, 115, 22, 0.2)"}`, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", cursor: "pointer", transition: "all 0.2s ease" }} className="hover:scale-105 active:scale-95">
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #F97316, #EA580C)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 20px rgba(249, 115, 22, 0.3)" }}>
+                    <Flame size={24} />
+                  </div>
+                  <span style={{ fontSize: "14px", fontWeight: "700", color: isDark ? "#FFEDD5" : "#7C2D12" }}>Fire</span>
+                </button>
+
+                <button onClick={() => navigate('/emergency')} style={{ padding: "16px", borderRadius: "20px", background: isDark ? "rgba(133, 77, 14, 0.2)" : "rgba(254, 249, 195, 0.8)", border: `1px solid ${isDark ? "rgba(234, 179, 8, 0.3)" : "rgba(234, 179, 8, 0.2)"}`, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", cursor: "pointer", transition: "all 0.2s ease" }} className="hover:scale-105 active:scale-95">
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #EAB308, #CA8A04)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 20px rgba(234, 179, 8, 0.3)" }}>
+                    <ShieldAlert size={24} />
+                  </div>
+                  <span style={{ fontSize: "14px", fontWeight: "700", color: isDark ? "#FEF08A" : "#713F12" }}>Security</span>
+                </button>
+              </div>
+            </motion.div>
+
             <div style={{ display: "grid", gridTemplateColumns: statsGridCols(bp), gap: "24px", marginBottom: "40px" }}>
               <StatWidget title="Total Notes" value={stats.total_notes} icon={BookOpen} color="#8B5CF6" />
               <StatWidget title="Active Jobs" value={stats.total_jobs} icon={Briefcase} color="#3B82F6" />
@@ -428,48 +481,55 @@ export default function Dashboard() {
               <StatWidget title="Blood Requests" value={stats.total_blood_requests} icon={Heart} color="#EF4444" />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: bp.isMobile ? "1fr" : "2fr 1fr", gap: "24px", marginBottom: "40px" }}>
-              <motion.div variants={itemVariants} style={{ background: isDark ? "linear-gradient(145deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.8) 100%)" : "linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)", backdropFilter: "blur(24px)", borderRadius: "28px", padding: "32px", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)"}`, boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.3)" : "0 12px 40px rgba(15,23,42,0.04)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
-                  <h2 style={{ fontSize: "20px", fontWeight: "800", color: isDark ? "#F8FAFC" : "#0F172A", margin: 0, display: "flex", alignItems: "center", gap: "10px", letterSpacing: "-0.5px" }}><LineChart size={22} color="#8B5CF6" strokeWidth={2.5} /> Platform Activity</h2>
-                  <select style={{ background: isDark ? "rgba(15,23,42,0.8)" : "white", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`, padding: "8px 16px", borderRadius: "12px", color: isDark ? "#E2E8F0" : "#334155", fontSize: "13px", fontWeight: "600", outline: "none", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                    <option>Last 12 Days</option>
-                  </select>
-                </div>
-                {/* Simulated Graph Using Mock Data for better visuals */}
-                <div style={{ height: "220px", display: "flex", alignItems: "flex-end", gap: "14px" }}>
-                  {[40, 60, 30, 80, 50, 90, 70, 100, 40, 60, 85, 45].map((h, i) => {
-                    return (
-                      <motion.div key={i} initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ duration: 0.8, delay: i * 0.04, type: "spring", damping: 20 }} style={{ flex: 1, background: `linear-gradient(180deg, #8B5CF6 ${h}%, rgba(139,92,246,0.05) 100%)`, borderRadius: "8px", opacity: 0.85, position: "relative", overflow: "hidden" }}>
-                        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", background: "white", opacity: 0.3, borderRadius: "4px 4px 0 0" }} />
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </motion.div>
+            <div style={{ display: "grid", gridTemplateColumns: bp.isMobile ? "1fr" : "2fr 1fr", gap: "24px", marginBottom: "40px", alignItems: "start" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                <motion.div variants={itemVariants} style={{ background: isDark ? "linear-gradient(145deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.8) 100%)" : "linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)", backdropFilter: "blur(24px)", borderRadius: "28px", padding: "32px", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)"}`, boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.3)" : "0 12px 40px rgba(15,23,42,0.04)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
+                    <h2 style={{ fontSize: "20px", fontWeight: "800", color: isDark ? "#F8FAFC" : "#0F172A", margin: 0, display: "flex", alignItems: "center", gap: "10px", letterSpacing: "-0.5px" }}><LineChart size={22} color="#8B5CF6" strokeWidth={2.5} /> Platform Activity</h2>
+                    <select style={{ background: isDark ? "rgba(15,23,42,0.8)" : "white", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`, padding: "8px 16px", borderRadius: "12px", color: isDark ? "#E2E8F0" : "#334155", fontSize: "13px", fontWeight: "600", outline: "none", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                      <option>Last 12 Days</option>
+                    </select>
+                  </div>
+                  {/* Simulated Graph Using Mock Data for better visuals */}
+                  <div style={{ height: "220px", display: "flex", alignItems: "flex-end", gap: "14px" }}>
+                    {[40, 60, 30, 80, 50, 90, 70, 100, 40, 60, 85, 45].map((h, i) => {
+                      return (
+                        <motion.div key={i} initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ duration: 0.8, delay: i * 0.04, type: "spring", damping: 20 }} style={{ flex: 1, background: `linear-gradient(180deg, #8B5CF6 ${h}%, rgba(139,92,246,0.05) 100%)`, borderRadius: "8px", opacity: 0.85, position: "relative", overflow: "hidden" }}>
+                          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", background: "white", opacity: 0.3, borderRadius: "4px 4px 0 0" }} />
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
 
-              <motion.div variants={itemVariants} style={{ background: isDark ? "linear-gradient(145deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.8) 100%)" : "linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)", backdropFilter: "blur(24px)", borderRadius: "28px", padding: "32px", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)"}`, boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.3)" : "0 12px 40px rgba(15,23,42,0.04)", display: "flex", flexDirection: "column" }}>
-                <h2 style={{ fontSize: "20px", fontWeight: "800", color: isDark ? "#F8FAFC" : "#0F172A", margin: "0 0 32px", display: "flex", alignItems: "center", gap: "10px", letterSpacing: "-0.5px" }}><Activity size={22} color="#10B981" strokeWidth={2.5} /> Live Updates</h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: "24px", flex: 1 }}>
-                  {stats.recent_activity.length > 0 ? stats.recent_activity.map((activity, i) => {
-                    const mapping = iconMap[activity.type] || iconMap.default;
-                    const IconComp = mapping.icon;
-                    return (
-                      <motion.div key={activity.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} style={{ display: "flex", gap: "16px", alignItems: "center", cursor: "pointer", padding: "8px", borderRadius: "16px", margin: "-8px", transition: "background 0.2s ease" }} onMouseEnter={(e) => e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                        <div style={{ width: "44px", height: "44px", borderRadius: "14px", background: isDark ? `linear-gradient(135deg, ${mapping.color}30 0%, ${mapping.color}10 100%)` : `linear-gradient(135deg, ${mapping.color}20 0%, ${mapping.color}05 100%)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: mapping.color, border: `1px solid ${isDark ? `${mapping.color}40` : `${mapping.color}20`}` }}>
-                          <IconComp size={20} strokeWidth={2.5} />
+                <motion.div variants={itemVariants} style={{ background: isDark ? "linear-gradient(145deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.8) 100%)" : "linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)", backdropFilter: "blur(24px)", borderRadius: "28px", padding: "32px", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)"}`, boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.3)" : "0 12px 40px rgba(15,23,42,0.04)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                    <h2 style={{ fontSize: "20px", fontWeight: "800", color: isDark ? "#F8FAFC" : "#0F172A", margin: 0, display: "flex", alignItems: "center", gap: "10px", letterSpacing: "-0.5px" }}><BellRing size={22} color="#F59E0B" strokeWidth={2.5} /> Live Updates</h2>
+                    <button style={{ background: "transparent", border: "none", color: "#3B82F6", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>Mark all read</button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {[1, 2].map((_, i) => (
+                      <div key={i} style={{ display: "flex", gap: "16px", padding: "16px", borderRadius: "16px", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", cursor: "pointer", transition: "all 0.2s" }}>
+                        <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: i === 0 ? "rgba(59,130,246,0.1)" : "rgba(16,185,129,0.1)", color: i === 0 ? "#3B82F6" : "#10B981", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {i === 0 ? <FileText size={20} /> : <Users size={20} />}
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: "15px", fontWeight: "700", color: isDark ? "#F8FAFC" : "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", letterSpacing: "-0.2px" }}>{activity.title}</div>
-                          <div style={{ fontSize: "13px", color: isDark ? "#94A3B8" : "#64748B", marginTop: "4px", fontWeight: "500" }}>{getRelativeTime(activity.time)}</div>
+                        <div>
+                          <div style={{ fontSize: "14px", fontWeight: "700", color: isDark ? "#F8FAFC" : "#0F172A", marginBottom: "4px" }}>
+                            {i === 0 ? "New Note Uploaded" : "Club Meeting Today"}
+                          </div>
+                          <div style={{ fontSize: "13px", color: isDark ? "#94A3B8" : "#64748B", lineHeight: "1.5" }}>
+                            {i === 0 ? "Advanced Database Systems notes added by Senior." : "Robotics club is hosting a workshop at 3 PM."}
+                          </div>
                         </div>
-                      </motion.div>
-                    );
-                  }) : (
-                    <div style={{ fontSize: "14px", color: isDark ? "#94A3B8" : "#64748B", textAlign: "center", marginTop: "40px", fontWeight: "500" }}>No recent activity.</div>
-                  )}
-                </div>
-              </motion.div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                <LeaderboardWidget />
+              </div>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "32px" }}>

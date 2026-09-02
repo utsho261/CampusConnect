@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import html2pdf from "html2pdf.js";
 import api from "../services/api";
 import bubtLogo from "../assets/bubt-logo.png";
+import FloatingBackButton from "../components/FloatingBackButton";
 
 const STORAGE_KEY = "campusconnect_assignment_cover";
 
@@ -316,6 +317,7 @@ export default function AssignmentCoverGenerator() {
 
   return (
     <div className="assignment-cover-generator">
+      <FloatingBackButton />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         .assignment-cover-generator {

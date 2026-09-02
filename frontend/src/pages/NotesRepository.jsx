@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   BookOpen,
+  Edit,
+  Trash2,
   Download,
   Eye,
   Search,
@@ -14,12 +16,15 @@ import {
   Sparkles,
 } from "lucide-react";
 import api from "../services/api";
+import { cachedGet, invalidateCache } from "../services/apiCache";
 import { useNavigate } from "react-router-dom";
 import { useLanguage, useTheme, useBreakpoint } from "../hooks";
 import { autoFillGrid, filterBarGrid, formGridCols, heroTitleSize, modalPadding, pageShellPadding, sectionTitleSize, statsAutoGrid } from "../utils/responsiveLayout";
 import ThemeLanguageSwitcher from "../components/ThemeLanguageSwitcher";
 import { getThemeColors } from "../utils/themeColors";
 import toast from "react-hot-toast";
+import FloatingBackButton from "../components/FloatingBackButton";
+import { downloadFile } from "../utils/downloadHelper";
 
 const ACCENT = "#7C3AED";
 const ACCENT_PINK = "#ec4899";
@@ -78,6 +83,8 @@ export default function NotesRepository() {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [editNoteId, setEditNoteId] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const username = localStorage.getItem("username") || t("common.student");
 
@@ -95,18 +102,29 @@ export default function NotesRepository() {
   };
 
   const fetchNotes = async () => {
+    // Show cached notes immediately, then refresh in background
+    const hasCached = !!localStorage.getItem('cc_cache_notes_list');
     try {
-      const res = await api.get("notes/");
-      setNotes(res.data);
+      const freshData = await cachedGet(api, "notes/", {
+        cacheKey: "notes_list",
+        ttl: 3 * 60 * 1000,
+        onCacheHit: (d) => { setNotes(d); setLoading(false); },
+      });
+      if (freshData) setNotes(freshData);
     } catch (error) {
       if (error.response?.status === 401) navigate("/login");
-      toast.error(t("messages.fetchFailed"));
+      if (!hasCached) toast.error(t("messages.fetchFailed"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleUploadSubmit = async () => {
+    if (editNoteId) {
+      handleEditSubmit();
+      return;
+    }
+
     if (!uploadFile) {
       toast.error(t("messages.selectFile"));
       return;
@@ -124,11 +142,10 @@ export default function NotesRepository() {
     formData.append("pdf_file", uploadFile);
 
     try {
-      await api.post("notes/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success(t("messages.uploadSuccess"));
+      await api.post("notes/", formData);
+      toast.success(`${t("messages.uploadSuccess")} +10 points earned!`);
       resetModal();
+      invalidateCache("notes_list");
       fetchNotes();
     } catch (err) {
       if (err.response?.status === 401) {
@@ -136,21 +153,77 @@ export default function NotesRepository() {
         navigate("/login");
       } else {
         const errData = err.response?.data;
-        const msg = errData
-          ? Object.entries(errData).map(([k, v]) => `${k}: ${v}`).join("\n")
-          : t("messages.uploadFailed");
+        let msg = t("messages.uploadFailed");
+        if (typeof errData === 'string') {
+          msg = errData;
+        } else if (errData && typeof errData === 'object') {
+          msg = Object.entries(errData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join("\n");
+        }
         setUploadError(msg);
-        toast.error(t("messages.uploadFailed"));
+        toast.error(msg);
       }
     } finally {
       setUploading(false);
     }
   };
 
+  const handleEditSubmit = async () => {
+    if (!uploadForm.title || !uploadForm.subject || !uploadForm.department || !uploadForm.intake) {
+      toast.error(t("messages.requiredFields"));
+      return;
+    }
+    setUploading(true);
+    const formData = new FormData();
+    Object.entries(uploadForm).forEach(([k, v]) => formData.append(k, v));
+    if (uploadFile) formData.append("pdf_file", uploadFile);
+
+    try {
+      await api.patch(`notes/${editNoteId}/`, formData);
+      toast.success("Updated successfully");
+      resetModal();
+      invalidateCache("notes_list");
+      fetchNotes();
+    } catch (err) {
+      toast.error("Failed to update");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this note?")) return;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`notes/${id}/`);
+      toast.success("Deleted successfully");
+      if (selectedNote?.id === id) setSelectedNote(null);
+      invalidateCache("notes_list");
+      fetchNotes();
+    } catch (e) {
+      toast.error("Failed to delete");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const openEditModal = (note) => {
+    setEditNoteId(note.id);
+    setUploadForm({
+      title: note.title,
+      subject: note.subject,
+      department: note.department,
+      intake: note.intake,
+      description: note.description || "",
+    });
+    setUploadFile(null);
+    setShowUpload(true);
+  };
+
   const resetModal = () => {
     setShowUpload(false);
     setUploadFile(null);
     setUploadError(null);
+    setEditNoteId(null);
     setUploadForm({ title: "", subject: "", department: "", intake: "", description: "" });
   };
 
@@ -263,15 +336,32 @@ export default function NotesRepository() {
                     >
                       <Eye size={16} /> {t("notes.viewPdf")}
                     </button>
-                    <a
-                      href={selectedNote.pdf_file}
-                      download
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        downloadFile(selectedNote.pdf_file, `${selectedNote.title}.pdf`);
+                      }}
                       style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 20px", background: colors.bg_secondary, color: ACCENT, border: `1.5px solid ${ACCENT}`, borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "none", fontFamily: "Inter, sans-serif" }}
                     >
                       <Download size={16} /> {t("common.download")}
-                    </a>
+                    </button>
+                  </>
+                )}
+                { (selectedNote.uploaded_by === username || selectedNote.uploaded_by?.split(' ')[0] === username) && (
+                  <>
+                    <button
+                      onClick={() => openEditModal(selectedNote)}
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 20px", background: colors.bg_secondary, color: ACCENT, border: `1.5px solid ${ACCENT}`, borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                    >
+                      <Edit size={16} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(selectedNote.id)}
+                      disabled={deleteLoading}
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 20px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                    >
+                      <Trash2 size={16} /> Delete
+                    </button>
                   </>
                 )}
               </div>
@@ -284,6 +374,7 @@ export default function NotesRepository() {
 
   return (
     <div className="cc-page" style={{ minHeight: "100vh", background: isDark ? "#0b1120" : "#faf5ff", padding: pageShellPadding(bp), fontFamily: "Inter, sans-serif", color: colors.text_primary, transition: "all 0.35s ease" }}>
+      <FloatingBackButton />
       <ThemeLanguageSwitcher />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -453,15 +544,55 @@ export default function NotesRepository() {
                       <span style={{ fontSize: 11, color: colors.text_muted, fontWeight: 600 }}>
                         {t("notes.intakeLabel", { value: note.intake })}
                       </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (note.pdf_file) window.open(note.pdf_file, "_blank");
-                        }}
-                        style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_PINK})`, color: "white", border: "none", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
-                      >
-                        <Download size={12} /> {t("common.download")}
-                      </button>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        { (note.uploaded_by === username || note.uploaded_by?.split(' ')[0] === username) && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditModal(note);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: colors.bg_secondary, color: ACCENT, border: `1px solid ${ACCENT}`, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                            >
+                              <Edit size={12} /> Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(note.id);
+                              }}
+                              disabled={deleteLoading}
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (note.pdf_file) {
+                              window.open(note.pdf_file, "_blank");
+                            } else {
+                              setSelectedNote(note);
+                            }
+                          }}
+                          style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: colors.bg_secondary, color: ACCENT, border: `1px solid ${ACCENT}`, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                        >
+                          <Eye size={12} /> View
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (note.pdf_file) {
+                              downloadFile(note.pdf_file, `${note.title}.pdf`);
+                            }
+                          }}
+                          style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_PINK})`, color: "white", border: "none", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                        >
+                          <Download size={12} /> {t("common.download")}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -479,7 +610,7 @@ export default function NotesRepository() {
         >
           <div className="cc-modal" style={{ width: "100%", maxWidth: 520, background: colors.bg_card, borderRadius: 24, border: `1.5px solid ${isDark ? "rgba(255,255,255,0.08)" : "#ede9fe"}`, overflow: "hidden", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 32px 80px rgba(124,58,237,0.2)" }}>
             <div style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_PINK})`, padding: "28px 32px", position: "relative" }}>
-              <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "white" }}>{t("notes.uploadNotes")}</h2>
+              <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800, color: "white" }}>{editNoteId ? "Edit Note" : t("notes.uploadNotes")}</h2>
               <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.8)" }}>{t("notes.uploadSubtitle")}</p>
               <button onClick={resetModal} style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
                 <X size={20} />
@@ -555,7 +686,7 @@ export default function NotesRepository() {
                     {t("common.cancel")}
                   </button>
                   <button onClick={handleUploadSubmit} disabled={uploading} style={{ padding: "12px 20px", background: uploading ? "#a78bfa" : `linear-gradient(135deg, ${ACCENT}, ${ACCENT_PINK})`, color: "white", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: uploading ? "wait" : "pointer", fontFamily: "Inter, sans-serif", opacity: uploading ? 0.7 : 1 }}>
-                    {uploading ? t("messages.uploading") : t("notes.uploadNotes")}
+                    {uploading ? t("messages.uploading") : (editNoteId ? "Save Changes" : t("notes.uploadNotes"))}
                   </button>
                 </div>
               </div>

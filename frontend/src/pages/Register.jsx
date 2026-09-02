@@ -172,10 +172,9 @@ function LeftPanel({ isDark, currentSection }) {
   const stepMessages = [
     { title: "Start Your\nAcademic Journey", sub: "Join a thriving campus community built for students like you." },
     { title: "Shape Your\nAcademic Profile", sub: "Tell us about your department and intake so we can personalise your experience." },
-    { title: "Verify &\nSecure Your Spot", sub: "We keep your account safe with email verification." },
     { title: "One Last Step\nToward Greatness", sub: "Set a strong password and you're in. The campus awaits." },
   ];
-  const msg = stepMessages[Math.min(currentSection - 1, 3)];
+  const msg = stepMessages[Math.min(currentSection - 1, 2)];
 
   return (
     <div style={{
@@ -245,7 +244,7 @@ function LeftPanel({ isDark, currentSection }) {
                 <Sparkles size={13} color="#fff" />
               </motion.div>
               <span style={{ fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.9)", letterSpacing:"0.5px" }}>
-                STEP {currentSection < 5 ? currentSection : "✓"} OF 4
+                STEP {currentSection < 4 ? currentSection : "✓"} OF 3
               </span>
             </motion.div>
 
@@ -255,10 +254,10 @@ function LeftPanel({ isDark, currentSection }) {
               lineHeight:1.15, letterSpacing:"-1.5px", margin:"0 0 16px",
               whiteSpace:"pre-line",
             }}>
-              {currentSection < 5 ? msg.title : "Welcome\nAboard! 🎉"}
+              {currentSection < 4 ? msg.title : "Welcome\nAboard! 🎉"}
             </h1>
             <p style={{ fontSize:15, color:"rgba(255,255,255,0.65)", lineHeight:1.65, margin:0, fontWeight:500 }}>
-              {currentSection < 5 ? msg.sub : "Your account is live. You're now part of the CampusConnect family."}
+              {currentSection < 4 ? msg.sub : "Your account is live. You're now part of the CampusConnect family."}
             </p>
           </motion.div>
         </AnimatePresence>
@@ -273,7 +272,7 @@ function LeftPanel({ isDark, currentSection }) {
             boxShadow:"0 16px 48px rgba(0,0,0,0.28), 0 2px 0 rgba(255,255,255,0.9) inset",
             overflow:"hidden",
           }}
-          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}
+          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.4 }}
           whileHover={{ y:-2, boxShadow:"0 22px 56px rgba(0,0,0,0.35)" }}
           transition={{ type:"spring", stiffness:300, damping:25 }}
         >
@@ -357,18 +356,18 @@ function LeftPanel({ isDark, currentSection }) {
       {/* Bottom bar */}
       <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.8 }}
         style={{ display:"flex", alignItems:"center", gap:8 }}>
-        {[0,1,2,3].map(i => (
+        {[0,1,2].map(i => (
           <motion.div key={i}
-            animate={{ width: i === Math.min(currentSection-1,3) ? 24 : 6 }}
+            animate={{ width: i === Math.min(currentSection-1,2) ? 24 : 6 }}
             transition={{ duration:0.4, ease:[0.34,1.3,0.64,1] }}
             style={{
               height:6, borderRadius:99,
-              background: i === Math.min(currentSection-1,3) ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)",
+              background: i === Math.min(currentSection-1,2) ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)",
             }}
           />
         ))}
         <span style={{ fontSize:12, color:"rgba(255,255,255,0.45)", fontWeight:600, marginLeft:8 }}>
-          {currentSection < 5 ? `${Math.round((currentSection/4)*100)}% complete` : "Done!"}
+          {currentSection < 4 ? `${Math.round((currentSection/3)*100)}% complete` : "Done!"}
         </span>
       </motion.div>
     </div>
@@ -382,10 +381,10 @@ function StepProgress({ current, isDark }) {
   const ac = isDark ? "#f59e0b" : "#7C3AED";
   return (
     <div style={{ display:"flex", alignItems:"center", gap:0, marginBottom:28 }}>
-      {[1,2,3,4].map((s, i) => {
+      {[1,2,3].map((s, i) => {
         const done = current > s, active = current === s;
         return (
-          <div key={s} style={{ display:"flex", alignItems:"center", flex: i < 3 ? 1 : "none" }}>
+          <div key={s} style={{ display:"flex", alignItems:"center", flex: i < 2 ? 1 : "none" }}>
             <motion.div
               animate={active ? { boxShadow:[`0 0 0 0 ${ac}40`,`0 0 0 8px ${ac}00`,`0 0 0 0 ${ac}40`] } : {}}
               transition={{ duration:2, repeat:Infinity }}
@@ -401,7 +400,7 @@ function StepProgress({ current, isDark }) {
             >
               {done ? <CheckCircle size={14} color={isDark?"#0f172a":"#fff"} /> : s}
             </motion.div>
-            {i < 3 && (
+            {i < 2 && (
               <div style={{ flex:1, height:2, margin:"0 4px", background: current > s ? ac : (isDark?"rgba(245,158,11,0.1)":"rgba(124,58,237,0.12)"), borderRadius:99, transition:"background 0.5s", position:"relative", overflow:"hidden" }}>
                 {current > s && (
                   <motion.div style={{ position:"absolute", inset:0, background:`linear-gradient(90deg,${ac},${isDark?"#d97706":"#4F46E5"})`, borderRadius:99 }}
@@ -445,6 +444,62 @@ function SuccessCheck({ isDark }) {
 /* ══════════════════════════════════════
    MAIN
 ══════════════════════════════════════ */
+const Spinner = () => (
+  <motion.div
+    animate={{ rotate: 360 }}
+    transition={{ duration:0.8, repeat:Infinity, ease:"linear" }}
+    style={{
+      width:18, height:18, borderRadius:"50%",
+      border:"2.5px solid rgba(255,255,255,0.3)",
+      borderTopColor:"#fff", flexShrink:0,
+    }}
+  />
+);
+
+const PrimaryBtn = ({ children, onClick, loading: btnLoading }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const ac = isDark ? "#f59e0b" : "#7C3AED";
+  const acSecondary = isDark ? "#d97706" : "#4F46E5";
+  const acRgb = isDark ? "245,158,11" : "124,58,237";
+  return (
+    <ShineBtn
+      onClick={onClick}
+      loading={btnLoading}
+      style={{
+        width:"100%", padding:"14px 24px",
+        background: btnLoading
+          ? (isDark?"rgba(245,158,11,0.5)":"rgba(124,58,237,0.5)")
+          : `linear-gradient(135deg,${ac},${acSecondary})`,
+        color: isDark?"#0f172a":"#fff",
+        border:"none", borderRadius:12, fontWeight:800, fontSize:15,
+        fontFamily:"Inter,sans-serif", letterSpacing:"0.2px",
+        boxShadow: btnLoading ? "none" : `0 6px 24px rgba(${acRgb},0.38)`,
+        display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+        transition:"background 0.3s, box-shadow 0.3s",
+      }}
+    >
+      {btnLoading ? <><Spinner /><span>Please wait...</span></> : children}
+    </ShineBtn>
+  );
+};
+
+const GhostBtn = ({ children, onClick }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <ShineBtn onClick={onClick} style={{
+      padding:"14px 18px", minWidth:50,
+      background: isDark?"rgba(15,23,42,0.5)":"rgba(249,246,255,0.7)",
+      color: isDark?"#64748b":"#9ca3af",
+      border:`2px solid ${isDark?"rgba(245,158,11,0.12)":"rgba(124,58,237,0.18)"}`,
+      borderRadius:12, fontWeight:700, fontFamily:"Inter,sans-serif",
+      boxShadow:"none",
+      display:"flex", alignItems:"center", justifyContent:"center",
+    }}>{children}</ShineBtn>
+  );
+};
+
 export default function Register() {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -465,7 +520,6 @@ export default function Register() {
   const [form, setForm] = useState({
     firstName:"", lastName:"", studentId:"",
     department:"", intake:"",
-    otp:["","","","","",""],
     password:"", confirm:"",
   });
 
@@ -477,21 +531,8 @@ export default function Register() {
   const [foc, setFoc] = useState({});
 
   const handleChange = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
-  const handleOtpChange = (i, v) => {
-    if (v.length > 1) return;
-    const o = [...form.otp]; o[i] = v; setForm({ ...form, otp:o });
-    if (v && i < 5) document.getElementById(`otp${i+1}`)?.focus();
-  };
-  const handleOtpKey = (i, e) => {
-    if (e.key==="Backspace" && !form.otp[i] && i>0) document.getElementById(`otp${i-1}`)?.focus();
-  };
 
-  const startTimer = () => {
-    setTimerSecs(59);
-    if (timerInterval) clearInterval(timerInterval);
-    const id = setInterval(() => setTimerSecs(p => { if(p<=1){clearInterval(id);return 0;} return p-1; }), 1000);
-    setTimerInterval(id);
-  };
+
 
   const uniEmail = form.studentId.length >= 4 && form.department
     ? `${form.studentId}@${form.department.toLowerCase()}.bubt.edu.bd` : "";
@@ -505,23 +546,11 @@ export default function Register() {
   const next = async from => {
     if (!validate(from)) return;
     setDir(1);
-    if (from===2){
-      setIsLoading(true);
-      try{ await api.post("request-otp/",{email:uniEmail}); toast.success("OTP sent to your email!"); setStep(from+1); startTimer(); }
-      catch(e){ toast.error(e.response?.data?.error||"Failed to send OTP."); }
-      finally{ setIsLoading(false); }
-    } else setStep(from+1);
+    setStep(from+1);
   };
   const back = from => { setDir(-1); setStep(from-1); };
 
-  const verifyOtp = async () => {
-    const s = form.otp.join("");
-    if(s.length<6){toast.error("Enter full 6-digit OTP.");return;}
-    setIsLoading(true);
-    try{ await api.post("verify-otp/",{email:uniEmail,otp:s}); toast.success("Verified!"); setDir(1); setStep(4); }
-    catch(e){ toast.error(e.response?.data?.error||"Invalid OTP"); }
-    finally{ setIsLoading(false); }
-  };
+
 
   const register = async () => {
     if(form.password.length<8){toast.error("Password must be 8+ chars.");return;}
@@ -533,9 +562,9 @@ export default function Register() {
         first_name:form.firstName, last_name:form.lastName,
         student_id:form.studentId, department:form.department,
         intake:parseInt(form.intake), university_email:uniEmail,
-        otp:form.otp.join(""), password:form.password,
+        password:form.password,
       });
-      setConfetti(true); setDir(1); setStep(5); toast.success("Account created!");
+      setConfetti(true); setDir(1); setStep(4); toast.success("Account created!");
     } catch(e) {
       const d=e.response?.data;
       if(d?.error) toast.error(d.error);
@@ -550,50 +579,7 @@ export default function Register() {
     exit: d => ({ y: d>0?-12:12, opacity:0, scale:0.98, filter:"blur(2px)" }),
   };
 
-  const Spinner = () => (
-    <motion.div
-      animate={{ rotate: 360 }}
-      transition={{ duration:0.8, repeat:Infinity, ease:"linear" }}
-      style={{
-        width:18, height:18, borderRadius:"50%",
-        border:"2.5px solid rgba(255,255,255,0.3)",
-        borderTopColor:"#fff", flexShrink:0,
-      }}
-    />
-  );
 
-  const PrimaryBtn = ({ children, onClick, loading: btnLoading }) => (
-    <ShineBtn
-      onClick={onClick}
-      loading={btnLoading}
-      style={{
-        width:"100%", padding:"14px 24px",
-        background: btnLoading
-          ? (isDark?"rgba(245,158,11,0.5)":"rgba(124,58,237,0.5)")
-          : `linear-gradient(135deg,${ac},${acSecondary})`,
-        color: isDark?"#0f172a":"#fff",
-        border:"none", borderRadius:12, fontWeight:800, fontSize:15,
-        fontFamily:"Inter,sans-serif", letterSpacing:"0.2px",
-        boxShadow: btnLoading ? "none" : `0 6px 24px rgba(${acRgb},0.38)`,
-        display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-        transition:"background 0.3s, box-shadow 0.3s",
-      }}
-    >
-      {btnLoading ? <><Spinner /><span>Please wait...</span></> : children}
-    </ShineBtn>
-  );
-
-  const GhostBtn = ({ children, onClick }) => (
-    <ShineBtn onClick={onClick} style={{
-      padding:"14px 18px", minWidth:50,
-      background: isDark?"rgba(15,23,42,0.5)":"rgba(249,246,255,0.7)",
-      color: isDark?"#64748b":"#9ca3af",
-      border:`2px solid ${isDark?"rgba(245,158,11,0.12)":"rgba(124,58,237,0.18)"}`,
-      borderRadius:12, fontWeight:700, fontFamily:"Inter,sans-serif",
-      boxShadow:"none",
-      display:"flex", alignItems:"center", justifyContent:"center",
-    }}>{children}</ShineBtn>
-  );
 
   return (
     <>
@@ -657,7 +643,7 @@ export default function Register() {
               background:`linear-gradient(90deg,transparent,${ac}90,transparent)`, borderRadius:"24px 24px 0 0" }}
               animate={{ opacity:[0.3,1,0.3] }} transition={{ duration:3, repeat:Infinity }} />
 
-            {step < 5 && (
+            {step < 4 && (
               <>
                 {/* Mini logo (mobile) */}
                 <div style={{ display:"none", alignItems:"center", gap:10, marginBottom:24 }} className="mobile-logo">
@@ -675,14 +661,13 @@ export default function Register() {
                   >
                     <p style={{ fontSize:11, fontWeight:700, letterSpacing:"0.7px", textTransform:"uppercase",
                       color: isDark?"#475569":"#94a3b8", marginBottom:4 }}>
-                      Step {step} of 4
+                      Step {step} of 3
                     </p>
                     <h2 style={{ fontSize:22, fontWeight:900, letterSpacing:"-0.6px",
                       color: isDark?"#f1f5f9":"#0f172a", lineHeight:1.25 }}>
                       {step===1 && "Personal Information"}
                       {step===2 && "Academic Details"}
-                      {step===3 && "Email Verification"}
-                      {step===4 && "Set Your Password"}
+                      {step===3 && "Set Your Password"}
                     </h2>
                   </motion.div>
                 </AnimatePresence>
@@ -703,20 +688,20 @@ export default function Register() {
                     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                       <div style={{ display:"flex", gap:12 }}>
                         <div style={{ flex:1 }}>
-                          <Field icon={User} label="First Name" placeholder="e.g. Utsho"
+                          <Field icon={User} label="First Name" placeholder="e.g. Shamim"
                             value={form.firstName} onChange={handleChange("firstName")}
                             onFocus={()=>setFoc({fn:true})} onBlur={()=>setFoc({})}
                             isFocused={foc.fn} isDark={isDark} />
                         </div>
                         <div style={{ flex:1 }}>
-                          <Field icon={User} label="Last Name" placeholder="e.g. Roy"
+                          <Field icon={User} label="Last Name" placeholder="e.g. Pramanik"
                             value={form.lastName} onChange={handleChange("lastName")}
                             onFocus={()=>setFoc({ln:true})} onBlur={()=>setFoc({})}
                             isFocused={foc.ln} isDark={isDark} />
                         </div>
                       </div>
                       <div>
-                        <Field icon={IdCard} label="Student ID (11 digits)" placeholder="22235103261"
+                        <Field icon={IdCard} label="Student ID (11 digits)" placeholder="22235103267"
                           value={form.studentId} onChange={handleChange("studentId")} maxLength={11}
                           onFocus={()=>setFoc({sid:true})} onBlur={()=>setFoc({})}
                           isFocused={foc.sid} isDark={isDark} />
@@ -793,67 +778,10 @@ export default function Register() {
                   </motion.div>
                 )}
 
+
                 {/* STEP 3 */}
                 {step===3 && (
-                  <motion.div key="s3" custom={dir} variants={slideV} initial="enter" animate="center" exit="exit"
-                    transition={{ duration:0.22, ease:"easeOut" }}>
-                    <div style={{ display:"flex", flexDirection:"column", gap:18, alignItems:"center" }}>
-                      <motion.div
-                        animate={{ scale:[1,1.08,1], boxShadow:[`0 0 0 0 ${ac}30`,`0 0 0 14px ${ac}00`] }}
-                        transition={{ duration:2.5, repeat:Infinity }}
-                        style={{ width:60, height:60, borderRadius:18,
-                          background: isDark?"rgba(245,158,11,0.1)":"rgba(124,58,237,0.08)",
-                          border:`2px solid ${isDark?"rgba(245,158,11,0.2)":"rgba(124,58,237,0.2)"}`,
-                          display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <Mail size={26} color={ac}/>
-                      </motion.div>
-                      <div style={{ textAlign:"center", width:"100%" }}>
-                        <p style={{ fontSize:13, color: isDark?"#94a3b8":"#6b7280", marginBottom:4 }}>6-digit code sent to</p>
-                        <p style={{ fontSize:13, fontFamily:"monospace", fontWeight:700, color:ac }}>{uniEmail}</p>
-                      </div>
-                      {/* OTP boxes */}
-                      <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
-                        {form.otp.map((d,i) => (
-                          <motion.input key={i} id={`otp${i}`} type="text" maxLength={1}
-                            value={d} onChange={e=>handleOtpChange(i,e.target.value)} onKeyDown={e=>handleOtpKey(i,e)}
-                            initial={{ opacity:0, scale:0.6, y:16 }}
-                            animate={{ opacity:1, scale:1, y:0 }}
-                            transition={{ delay:i*0.06, type:"spring", stiffness:400, damping:20 }}
-                            whileFocus={{ scale:1.1 }}
-                            style={{
-                              width:46, height:56, textAlign:"center", fontSize:20, fontWeight:800,
-                              fontFamily:"Inter,sans-serif",
-                              background: d ? (isDark?"rgba(245,158,11,0.1)":"rgba(124,58,237,0.07)") : (isDark?"rgba(15,23,42,0.5)":"rgba(249,246,255,0.8)"),
-                              border:`2px solid ${d?ac:(isDark?"rgba(245,158,11,0.12)":"rgba(124,58,237,0.18)")}`,
-                              borderRadius:12, color: isDark?"#f1f5f9":"#0f172a", outline:"none",
-                              boxShadow: d?`0 0 10px ${ac}25`:"none", transition:"all 0.2s",
-                            }} />
-                        ))}
-                      </div>
-                      <p style={{ fontSize:13, color: isDark?"#64748b":"#9ca3af", textAlign:"center" }}>
-                        Didn't receive it?{" "}
-                        {timerSecs>0
-                          ? <span style={{ fontWeight:700, color:ac }}>0:{String(timerSecs).padStart(2,"0")}</span>
-                          : <motion.button onClick={async()=>{ try{ await api.post("request-otp/",{email:uniEmail}); toast.success("OTP resent!"); startTimer(); }catch(e){toast.error("Failed.");} }}
-                              whileHover={{scale:1.05}} whileTap={{scale:0.95}}
-                              style={{ background:"none", border:"none", color:ac, fontWeight:700, fontSize:13, fontFamily:"Inter,sans-serif", cursor:"pointer" }}>
-                              Resend Now
-                            </motion.button>
-                        }
-                      </p>
-                      <div style={{ display:"flex", gap:10, width:"100%" }}>
-                        <GhostBtn onClick={()=>back(3)}><ArrowLeft size={17}/></GhostBtn>
-                        <div style={{ flex:1 }}>
-                          <PrimaryBtn onClick={verifyOtp} loading={isLoading}><Shield size={17}/> Verify OTP</PrimaryBtn>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* STEP 4 */}
-                {step===4 && (
-                  <motion.div key="s4" custom={dir} variants={slideV}
+                  <motion.div key="s3" custom={dir} variants={slideV}
                     initial="enter" animate="center" exit="exit"
                     transition={{ duration:0.22, ease:"easeOut" }}>
                     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -916,7 +844,7 @@ export default function Register() {
                       </motion.div>
                       <motion.div initial={{ opacity:0,y:14 }} animate={{ opacity:1,y:0 }} transition={{ delay:0.22 }}>
                         <div style={{ display:"flex", gap:10 }}>
-                          <GhostBtn onClick={()=>back(4)}><ArrowLeft size={17}/></GhostBtn>
+                          <GhostBtn onClick={()=>back(3)}><ArrowLeft size={17}/></GhostBtn>
                           <div style={{ flex:1 }}>
                             <PrimaryBtn onClick={register} loading={isLoading}>Create Account <CheckCircle size={17}/></PrimaryBtn>
                           </div>
@@ -926,9 +854,9 @@ export default function Register() {
                   </motion.div>
                 )}
 
-                {/* STEP 5 — Success */}
-                {step===5 && (
-                  <motion.div key="s5"
+                {/* STEP 4 — Success */}
+                {step===4 && (
+                  <motion.div key="s4"
                     variants={{ enter:{ opacity:0, scale:0.75, filter:"blur(12px)" }, center:{ opacity:1, scale:1, filter:"blur(0px)" }, exit:{ opacity:0, scale:1.05 } }}
                     initial="enter" animate="center" exit="exit"
                     transition={{ duration:0.7, ease:[0.34,1.3,0.64,1] }}>
@@ -957,7 +885,7 @@ export default function Register() {
             </div>
 
             {/* Footer */}
-            {step<5 && (
+            {step<4 && (
               <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.5 }}
                 style={{ textAlign:"center", fontSize:13, color: isDark?"#374151":"#9ca3af", marginTop:24 }}>
                 Already have an account?{" "}

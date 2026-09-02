@@ -21,7 +21,7 @@ export function sidebarWidth(bp) {
   return bp.isMobile ? "min(86vw, 300px)" : "270px";
 }
 
-export function mainOffset(bp, sidebarOpen = false) {
+export function mainOffset(bp) {
   if (bp.isMobile) return 0;
   return 270;
 }

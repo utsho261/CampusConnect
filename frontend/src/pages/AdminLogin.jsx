@@ -5,6 +5,7 @@ import api from "../services/api";
 import toast from "react-hot-toast";
 import { useTheme } from "../hooks";
 import { useLanguage } from "../hooks";
+import { useAuth } from "../contexts/AuthContext";
 import ThemeLanguageSwitcher from "../components/ThemeLanguageSwitcher";
 import { getThemeColors } from "../utils/themeColors";
 
@@ -12,6 +13,7 @@ export default function AdminLogin() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { t } = useLanguage();
+  const { login } = useAuth();
   const colors = getThemeColors(theme);
 
   const [form, setForm] = useState({ username: "", password: "" });
@@ -32,10 +34,7 @@ export default function AdminLogin() {
         password: form.password,
       });
 
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
-      localStorage.setItem("username", res.data.username);
-      localStorage.setItem("role", res.data.role);
+      login(res.data, { access: res.data.access, refresh: res.data.refresh });
 
       toast.success(t("messages.loginSuccess"));
       setTimeout(() => navigate("/admin/dashboard"), 800);

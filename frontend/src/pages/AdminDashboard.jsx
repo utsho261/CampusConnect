@@ -45,6 +45,8 @@ function AdminSidebar({ activeTab, setActiveTab, pendingJobCount = 0, isMobile, 
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { key: "students", label: "Student Portal", icon: Users },
     { key: "jobs", label: "Job Approvals", icon: Briefcase, badge: pendingJobCount },
+    { key: "clubs", label: "Club Approvals", icon: Sparkles },
+    { key: "emergency", label: "Emergency", icon: Phone },
     { key: "settings", label: "Settings", icon: Settings2 },
   ];
 
@@ -260,10 +262,14 @@ function PermissionModal({ student, permissions, onClose, onSave }) {
   );
 }
 
-// ─── Main Admin Dashboard ──────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem("adminActiveTab") || "dashboard");
+  
+  useEffect(() => {
+    localStorage.setItem("adminActiveTab", activeTab);
+  }, [activeTab]);
+
   const [stats, setStats] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -276,12 +282,26 @@ export default function AdminDashboard() {
 
   // Job approvals
   const [adminJobs, setAdminJobs] = useState([]);
-  const [pendingJobCount, setPendingJobCount] = useState(0);
   const [jobsLoading, setJobsLoading] = useState(false);
   const [jobFilter, setJobFilter] = useState("pending");
+  const [pendingJobCount, setPendingJobCount] = useState(0);
   const [reviewJob, setReviewJob] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  const [adminClaims, setAdminClaims] = useState([]);
+  const [claimsLoading, setClaimsLoading] = useState(false);
+  const [claimFilter, setClaimFilter] = useState("pending");
   const [reviewing, setReviewing] = useState(false);
+  
+  // Emergency
+  const [emergencyCategories, setEmergencyCategories] = useState([]);
+  const [emergencyNotices, setEmergencyNotices] = useState([]);
+  const [emergencyLoading, setEmergencyLoading] = useState(false);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null); // Used for both notice and contact
+  const [isSaving, setIsSaving] = useState(false);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const bp = useBreakpoint();
@@ -304,19 +324,101 @@ export default function AdminDashboard() {
     }
   }, [navigate]);
 
-  const loadAdminJobs = useCallback(async (status = jobFilter) => {
-    setJobsLoading(true);
+  const loadJobs = async () => {
     try {
-      const res = await api.get("admin/jobs/", { params: status ? { status } : {} });
-      setAdminJobs(res.data.jobs || []);
+      setJobsLoading(true);
+      const res = await api.get("admin/jobs/");
+      const data = res.data.jobs || [];
+      setAdminJobs(data.filter(j => j.status === jobFilter));
       setPendingJobCount(res.data.pending_count || 0);
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to load job postings");
+      console.error("Failed to load jobs", error);
     } finally {
       setJobsLoading(false);
     }
-  }, [jobFilter]);
+  };
+
+  const loadClaims = async () => {
+    try {
+      setClaimsLoading(true);
+      const res = await api.get("clubs/claims/");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setAdminClaims(data.filter(c => c.status === claimFilter));
+    } catch (error) {
+      console.error("Failed to load claims", error);
+    } finally {
+      setClaimsLoading(false);
+    }
+  };
+
+  const loadEmergencyData = async () => {
+    try {
+      setEmergencyLoading(true);
+      const [catRes, notRes] = await Promise.all([
+        api.get("emergency/categories/"),
+        api.get("emergency/notices/")
+      ]);
+      setEmergencyCategories(catRes.data);
+      setEmergencyNotices(notRes.data);
+    } catch (error) {
+      console.error("Failed to load emergency data", error);
+    } finally {
+      setEmergencyLoading(false);
+    }
+  };
+
+  const handleSaveNotice = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const form = e.target;
+    const data = {
+      message: form.message.value,
+      is_active: form.is_active.checked,
+    };
+    try {
+      if (editingItem) {
+        await api.patch(`emergency/notices/${editingItem.id}/`, data);
+        toast.success("Notice updated!");
+      } else {
+        await api.post("emergency/notices/", data);
+        toast.success("Notice added!");
+      }
+      setShowNoticeModal(false);
+      loadEmergencyData();
+    } catch (err) {
+      toast.error("Failed to save notice");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveContact = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const form = e.target;
+    const data = {
+      category: form.category.value,
+      name: form.name.value,
+      phone: form.phone.value,
+      location: form.location.value,
+      hours: form.hours.value,
+    };
+    try {
+      if (editingItem) {
+        await api.patch(`emergency/contacts/${editingItem.id}/`, data);
+        toast.success("Contact updated!");
+      } else {
+        await api.post("emergency/contacts/", data);
+        toast.success("Contact added!");
+      }
+      setShowContactModal(false);
+      loadEmergencyData();
+    } catch (err) {
+      toast.error("Failed to save contact");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -325,12 +427,26 @@ export default function AdminDashboard() {
       return;
     }
     loadStats();
-    loadAdminJobs("pending");
-  }, [loadStats, loadAdminJobs, navigate]);
+    loadJobs();
+  }, [loadStats, navigate]);
 
   useEffect(() => {
-    if (activeTab === "jobs") loadAdminJobs(jobFilter);
-  }, [activeTab, jobFilter, loadAdminJobs]);
+    if (activeTab === "jobs") {
+      loadJobs();
+    }
+  }, [activeTab, jobFilter]);
+
+  useEffect(() => {
+    if (activeTab === "clubs") {
+      loadClaims();
+    }
+  }, [activeTab, claimFilter]);
+
+  useEffect(() => {
+    if (activeTab === "emergency") {
+      loadEmergencyData();
+    }
+  }, [activeTab]);
 
   const handleJobReview = async (jobId, action) => {
     setReviewing(true);
@@ -342,7 +458,7 @@ export default function AdminDashboard() {
       toast.success(action === "approve" ? "Job approved & published" : "Job rejected");
       setReviewJob(null);
       setRejectReason("");
-      loadAdminJobs(jobFilter);
+      loadJobs();
     } catch {
       toast.error("Review failed");
     } finally {
@@ -769,6 +885,97 @@ export default function AdminDashboard() {
             </>
           )}
 
+          {/* ─── CLUB APPROVALS TAB ─── */}
+          {activeTab === "clubs" && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: 0 }}>Club Admin Claims</h2>
+                  <p style={{ fontSize: "13px", color: "#94a3b8", margin: "4px 0 0" }}>Review and approve club administrator requests</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["pending", "approved", "rejected"].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setClaimFilter(s)}
+                      style={{
+                        padding: "8px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+                        fontSize: 13, fontWeight: 700, fontFamily: "Inter, sans-serif",
+                        background: claimFilter === s ? "#4F46E5" : "#f1f5f9",
+                        color: claimFilter === s ? "white" : "#64748b",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {claimsLoading ? (
+                <div style={{ textAlign: "center", padding: 60, color: "#94a3b8" }}>Loading claims…</div>
+              ) : adminClaims.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 60, background: "white", borderRadius: 18, border: "1px solid #f1f5f9" }}>
+                  <Sparkles size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+                  <div style={{ fontWeight: 600, color: "#64748b" }}>No {claimFilter} claims</div>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 16 }}>
+                  {adminClaims.map((claim) => (
+                    <div key={claim.id} style={{ background: "white", borderRadius: 18, padding: "24px 28px", border: "1px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                        <div style={{ flex: 1, minWidth: 260 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+                            <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, background: "#eef2ff", color: "#4F46E5", textTransform: "capitalize" }}>
+                              {claim.role_claimed}
+                            </span>
+                            <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, background: claim.status === "pending" ? "#fffbeb" : claim.status === "approved" ? "#ecfdf5" : "#fef2f2", color: claim.status === "pending" ? "#d97706" : claim.status === "approved" ? "#059669" : "#ef4444", textTransform: "capitalize" }}>
+                              {claim.status}
+                            </span>
+                          </div>
+                          <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{claim.club_name || `Club ID: ${claim.club}`}</h3>
+                          <p style={{ margin: "0 0 8px", fontSize: 14, color: "#64748b", fontWeight: 600 }}>Requested by: {claim.user?.username || `User ID: ${claim.user}`}</p>
+                          <p style={{ margin: "0 0 8px", fontSize: 13, color: "#94a3b8" }}>{new Date(claim.submitted_at).toLocaleDateString()}</p>
+                          {(claim.proof || claim.proof_image) && (
+                            <div style={{ marginTop: 12, padding: 12, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Proof Provided:</p>
+                              {claim.proof && <p style={{ margin: 0, fontSize: 13, color: "#64748b", whiteSpace: "pre-wrap", marginBottom: claim.proof_image ? 8 : 0 }}>{claim.proof}</p>}
+                              {claim.proof_image && (
+                                <a href={claim.proof_image} target="_blank" rel="noopener noreferrer">
+                                  <img src={claim.proof_image} alt="ID Card Proof" style={{ maxHeight: "200px", maxWidth: "100%", borderRadius: "8px", objectFit: "cover", border: "1px solid #cbd5e1" }} />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {claim.status === "pending" && (
+                          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                            <button onClick={() => {
+                              api.post(`clubs/claims/${claim.id}/approve/`).then(() => {
+                                toast.success("Claim approved!");
+                                loadClaims();
+                              }).catch(() => toast.error("Failed to approve claim"));
+                            }} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "#10b981", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "white", fontFamily: "Inter, sans-serif" }}>
+                              Approve
+                            </button>
+                            <button onClick={() => {
+                              api.post(`clubs/claims/${claim.id}/reject/`).then(() => {
+                                toast.success("Claim rejected!");
+                                loadClaims();
+                              }).catch(() => toast.error("Failed to reject claim"));
+                            }} style={{ padding: "10px 18px", borderRadius: 10, border: "1.5px solid #ef4444", background: "white", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#ef4444", fontFamily: "Inter, sans-serif" }}>
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
           {/* ─── SETTINGS TAB ─── */}
           {activeTab === "settings" && (
             <div style={{ maxWidth: "600px" }}>
@@ -786,6 +993,123 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {/* ─── EMERGENCY MANAGEMENT TAB ─── */}
+          {activeTab === "emergency" && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: 0 }}>Emergency Contacts</h2>
+                  <p style={{ fontSize: "13px", color: "#94a3b8", margin: "4px 0 0" }}>Manage emergency notices and contact numbers</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                   <button style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#f59e0b", color: "white", fontWeight: 700, cursor: "pointer" }} onClick={() => { setEditingItem(null); setShowNoticeModal(true); }}>
+                     + Add Notice
+                   </button>
+                   <button style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#4F46E5", color: "white", fontWeight: 700, cursor: "pointer" }} onClick={() => { setEditingItem(null); setShowContactModal(true); }}>
+                     + Add Contact
+                   </button>
+                </div>
+              </div>
+
+              {emergencyLoading ? (
+                <div style={{ textAlign: "center", padding: 60, color: "#94a3b8" }}>Loading emergency data...</div>
+              ) : (
+                <div style={{ display: "grid", gap: "24px" }}>
+                  {/* Notices Section */}
+                  <div style={{ background: "white", borderRadius: 18, border: "1px solid #f1f5f9", padding: "24px" }}>
+                     <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Active Notices</h3>
+                     {emergencyNotices.length === 0 ? (
+                       <div style={{ color: "#94a3b8", fontSize: 14 }}>No notices found.</div>
+                     ) : (
+                       <div style={{ display: "grid", gap: "12px" }}>
+                         {emergencyNotices.map(notice => (
+                           <div key={notice.id} style={{ padding: "16px", borderRadius: "12px", background: notice.is_active ? "#fef2f2" : "#f8fafc", border: `1px solid ${notice.is_active ? '#fecaca' : '#e2e8f0'}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                             <div>
+                               <div style={{ fontSize: "14px", fontWeight: "600", color: "#0f172a" }}>{notice.message}</div>
+                               <div style={{ fontSize: "12px", color: "#64748b", marginTop: 4 }}>Status: {notice.is_active ? "Active" : "Inactive"}</div>
+                             </div>
+                             <button style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", fontSize: 12, cursor: "pointer" }} onClick={() => { setEditingItem(notice); setShowNoticeModal(true); }}>Edit</button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                  </div>
+
+                  {/* Categories Section */}
+                  {emergencyCategories.map(cat => (
+                    <div key={cat.id} style={{ background: "white", borderRadius: 18, border: "1px solid #f1f5f9", padding: "24px" }}>
+                       <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", background: cat.color }}></span>
+                          {cat.name}
+                       </h3>
+                       {cat.contacts && cat.contacts.length === 0 ? (
+                         <div style={{ color: "#94a3b8", fontSize: 14 }}>No contacts in this category.</div>
+                       ) : (
+                         <div style={{ display: "grid", gap: "12px" }}>
+                           {cat.contacts.map(contact => (
+                             <div key={contact.id} style={{ padding: "12px 16px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                               <div>
+                                 <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>{contact.name}</div>
+                                 <div style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>{contact.phone} • {contact.location}</div>
+                               </div>
+                               <button style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", fontSize: 12, cursor: "pointer" }} onClick={() => { setEditingItem(contact); setShowContactModal(true); }}>Edit</button>
+                             </div>
+                           ))}
+                         </div>
+                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Notice Modal */}
+          {showNoticeModal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+              <div style={{ background: "white", padding: 24, borderRadius: 16, width: "100%", maxWidth: 400 }}>
+                <h3 style={{ margin: "0 0 16px" }}>{editingItem ? "Edit Notice" : "Add Notice"}</h3>
+                <form onSubmit={handleSaveNotice} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <textarea name="message" defaultValue={editingItem?.message || ""} required rows={3} placeholder="Notice message..." style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                    <input type="checkbox" name="is_active" defaultChecked={editingItem ? editingItem.is_active : true} />
+                    Active Notice
+                  </label>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                    <button type="button" onClick={() => setShowNoticeModal(false)} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", cursor: "pointer" }}>Cancel</button>
+                    <button type="submit" disabled={isSaving} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#f59e0b", color: "white", cursor: "pointer", fontWeight: 700 }}>{isSaving ? "Saving..." : "Save"}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Contact Modal */}
+          {showContactModal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+              <div style={{ background: "white", padding: 24, borderRadius: 16, width: "100%", maxWidth: 400 }}>
+                <h3 style={{ margin: "0 0 16px" }}>{editingItem ? "Edit Contact" : "Add Contact"}</h3>
+                <form onSubmit={handleSaveContact} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <select name="category" defaultValue={editingItem?.category || ""} required style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                    <option value="" disabled>Select Category</option>
+                    {emergencyCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <input type="text" name="name" defaultValue={editingItem?.name || ""} required placeholder="Contact Name" style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  <input type="text" name="phone" defaultValue={editingItem?.phone || ""} required placeholder="Phone Number" style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  <input type="text" name="location" defaultValue={editingItem?.location || ""} required placeholder="Location" style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  <input type="text" name="hours" defaultValue={editingItem?.hours || ""} placeholder="Available Hours (optional)" style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                    <button type="button" onClick={() => setShowContactModal(false)} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", cursor: "pointer" }}>Cancel</button>
+                    <button type="submit" disabled={isSaving} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#4F46E5", color: "white", cursor: "pointer", fontWeight: 700 }}>{isSaving ? "Saving..." : "Save"}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
 
