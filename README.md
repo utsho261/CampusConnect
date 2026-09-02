@@ -1,4 +1,4 @@
-# 🎓 CampusConnect — All-in-One University Platform
+# 🎓 CampusConnect — A Smart Student Community and Academic Support Platform
 
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8.0-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
@@ -9,6 +9,29 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **CampusConnect** is a comprehensive, modern university community and management ecosystem designed to bridge the gap between students, clubs, faculty, and campus administration. It streamlines academic resource sharing, extracurricular activities, emergency support, peer-to-peer campus commerce, and student verification in a unified, beautiful web experience.
+
+---
+
+## 🏛️ Academic Affiliation & Supervision
+
+This project was developed and submitted in partial fulfillment of the requirements for the degree of **Bachelor of Science in Computer Science and Engineering (B.Sc. in CSE)**.
+
+- **Institution**: **Bangladesh University of Business and Technology (BUBT)**
+- **Department**: Department of Computer Science and Engineering (CSE)
+- **Course**: Software Development IV (`CSE - 400`)
+- **Supervised By**: **Ahmed Shafkat**, *Assistant Professor, Department of CSE, BUBT*
+
+---
+
+## 👥 Project Team & Contributors
+
+| Sl. | Contributor Name | Student ID | Department |
+| :---: | :--- | :---: | :---: |
+| 1 | **Utsho Roy** | `22235103261` | CSE, BUBT |
+| 2 | **Md. Shamim Pramanik** | `22235103267` | CSE, BUBT |
+| 3 | **Mohammad Mostafizur Rahman** | `22235103330` | CSE, BUBT |
+| 4 | **Afrin Akter Achol** | `22235103358` | CSE, BUBT |
+| 5 | **Md. Arifur Rahaman** | `21225103159` | CSE, BUBT |
 
 ---
 
@@ -225,5 +248,5 @@ Distributed under the **MIT License**. See `LICENSE` for more information.
 ---
 
 <p align="center">
-  Made with ❤️ for the university student community.
+  Made with ❤️ by the CSE Dept, BUBT student team.
 </p>
